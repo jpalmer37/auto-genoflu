@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "auto_genoflu"
+version = "0.1.0"
+description = "A Python application for automating GenoFLU analysis"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {file = "LICENSE"}  # Optional, if you have a LICENSE file
+
+[project.scripts]
+auto_genoflu = "auto_genoflu.__main__:main"
+
+[tool.setuptools]
+packages = ["auto_genoflu"]
