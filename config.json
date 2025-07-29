@@ -1,0 +1,8 @@
+{
+	"input_dir": "/path/to/genoflu/inputs/",
+	"rename_dir": "/path/to/genoflu/rename/",
+	"output_dir": "/path/to/genoflu/outputs/",
+	"provenance_dir": "/path/to/genoflu/logs/",
+	"genoflu_env": "/path/to/conda/envs/genoflu/",
+	"scan_interval_seconds": 180
+}
