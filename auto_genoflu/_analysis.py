@@ -5,9 +5,15 @@ import subprocess
 import datetime
 import json
 import logging
+import shutil
 
 from auto_genoflu._tools import get_input_name, get_output_name, make_symlink, compute_hash, load_config, glob_single
 from auto_genoflu._rename import rename_fasta_headers
+
+def get_genoflu_env():
+    genoflu_path = subprocess.check_output(['which', 'genoflu.py']).decode('utf-8').strip()
+    genoflu_env = os.path.dirname(os.path.dirname(genoflu_path))
+    return genoflu_env
 
 
 def find_files_to_process(config: dict) -> List[str]:
@@ -66,14 +72,17 @@ def run_genoflu(fasta_file: str, config: dict) -> None:
     input_filepath = f'./{sample_name}__input.fasta'
     # Build and run the command
     try:
+
+        genoflu_env = get_genoflu_env()
+
         # need this because genoflu is stupid 
         rename_fasta_headers(fasta_file, renamed_filepath)
         make_symlink(renamed_filepath, input_filepath)
 
         # Replace this with your actual command
-        cmd = [ "conda", "run", "-n", "genoflu", "genoflu.py",
-            "-i", config['genoflu_env'] + "/dependencies/fastas/",
-            "-c", config['genoflu_env'] + "/dependencies/genotype_key.xlsx",
+        cmd = [ f"genoflu.py",
+            "-i", f"{genoflu_env}/dependencies/fastas/",
+            "-c", f"{genoflu_env}/dependencies/genotype_key.xlsx",
             "-f", input_filepath,
             "-n", sample_name
         ]
@@ -84,7 +93,7 @@ def run_genoflu(fasta_file: str, config: dict) -> None:
         tsv_file = glob_single(f'./{sample_name}*stats.tsv')
         xlsx_file = glob_single(f'./{sample_name}*stats.xlsx')
 
-        os.rename(tsv_file, output_file)
+        shutil.move(tsv_file, output_file)
 
         input_hash = compute_hash(fasta_file)
         output_hash = compute_hash(output_file)
@@ -104,8 +113,12 @@ def run_genoflu(fasta_file: str, config: dict) -> None:
         os.remove(xlsx_file)
         os.remove(input_filepath)
 
-        print(f"Successfully processed {fasta_file}")
         
     except subprocess.CalledProcessError as e:
-        print(f"Error processing {fasta_file}: {e}")
-        print(f"STDERR: {e.stderr}")
+        logging.error(json.dumps({"event_name": "genoflu_failed", "sample_name": sample_name, "error": str(e)}))
+
+    except (IOError, FileNotFoundError) as e:
+        logging.error(json.dumps({"event_name": "genoflu_failed_file_error", "sample_name": sample_name, "error": str(e)}))
+
+    except (KeyError) as e:
+        logging.error(json.dumps({"event_name": "genoflu_failed_key_error", "sample_name": sample_name, "error": str(e)}))

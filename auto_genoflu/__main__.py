@@ -29,7 +29,7 @@ def run_auto_analysis(config: dict) -> None:
     # Process each file
     for fasta_file in files_to_process:
         run_genoflu(fasta_file, config)
-        logging.info(json.dumps({"event_type": "analysis_complete",  "files_to_process": len(files_to_process)}))    
+        logging.info(json.dumps({"event_type": "analysis_complete",  "fasta_file": fasta_file }))    
 
 
 def main() -> None:
