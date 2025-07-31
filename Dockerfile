@@ -10,7 +10,7 @@ COPY . /app
 # Install any necessary build tools and dependencies
 RUN mamba env create -f environment.yml
 
-RUN mkdir -p /home/ubuntu/work/flu/genoflu/{rename,outputs,logs}
+RUN mkdir -p /home/ubuntu/work/flu/genoflu/{rename,outputs,logs} && mkdir -p /data
 
 RUN mv ./aws-config.json /data/config.json
 
