@@ -10,12 +10,10 @@ COPY . /app
 # Install any necessary build tools and dependencies
 RUN mamba env create -f environment.yml
 
-RUN mkdir -p /home/ubuntu/work/flu/genoflu/{rename,outputs,logs} && mkdir -p /data
-
-RUN mv ./aws-config.json /data/config.json
+RUN mkdir -p /home/ubuntu/genoflu/{rename,outputs,logs} && mkdir -p /data
 
 # Set the default command to run your application
 ENTRYPOINT ["mamba", "run", "-n", "auto-genoflu", "auto_genoflu"]
 
 # Optional: Provide a default config file
-CMD ["-c", "/data/config.json"]
+CMD ["-c", "/app/aws-config.json"]
