@@ -1,0 +1,7 @@
+{
+	"input_dir": "/mnt/efs/service-jpalmer/files/analysis/avian_flu/auto_genoflu/inputs/",
+	"rename_dir": "/home/ubuntu/work/flu/genoflu/rename/",
+	"output_dir": "/home/ubuntu/work/flu/genoflu/outputs/",
+	"provenance_dir": "/home/ubuntu/work/flu/genoflu/logs/",
+	"scan_interval_seconds": 10
+}
