@@ -1,0 +1,5 @@
+services:
+  auto-genoflu:
+    image: auto-genoflu:v0.1.2
+    volumes:
+      - ./prod-config.json:/data/config.json

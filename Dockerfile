@@ -14,4 +14,4 @@ RUN mamba env create -f environment.yml
 ENTRYPOINT ["mamba", "run", "-n", "auto-genoflu", "auto_genoflu"]
 
 # Optional: Provide a default config file
-CMD ["-c", "prod-config.json"]
+CMD ["-c", "/data/config.json"]

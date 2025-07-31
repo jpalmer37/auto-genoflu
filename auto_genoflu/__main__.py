@@ -20,11 +20,17 @@ def run_auto_analysis(config: dict) -> None:
     
     # Find files that need to be processed
     scan_start_timestamp = datetime.datetime.now()
-    files_to_process = find_files_to_process(config)
+
+    input_files, output_files, files_to_process = find_files_to_process(config)
+
     scan_complete_timestamp = datetime.datetime.now()
     scan_duration_delta = scan_complete_timestamp - scan_start_timestamp
     scan_duration_seconds = scan_duration_delta.total_seconds()
-    logging.info(json.dumps({"event_type": "scan_complete", "scan_duration_seconds": scan_duration_seconds, "files_to_process": len(files_to_process)}))
+
+    logging.info(json.dumps({"event_type": "scan_complete", "scan_duration_seconds": scan_duration_seconds, \
+                             "files_to_process": len(files_to_process), "inputs_detected": len(input_files), \
+                             "outputs_detected": len(output_files)}))
+
 
     # Process each file
     for fasta_file in files_to_process:

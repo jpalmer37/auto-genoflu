@@ -1,6 +1,6 @@
 import os 
 from glob import glob 
-from typing import List
+from typing import List, Tuple
 import subprocess
 import datetime
 import json
@@ -16,7 +16,7 @@ def get_genoflu_env():
     return genoflu_env
 
 
-def find_files_to_process(config: dict) -> List[str]:
+def find_files_to_process(config: dict) -> Tuple[List[str], List[str], List[str]]:
     """Find FASTA files in input_dir that haven't been processed in output_dir."""
     # Get all FASTA files from input directory
     input_files = glob(os.path.join(config['input_dir'], "*.fa")) + \
@@ -59,7 +59,7 @@ def find_files_to_process(config: dict) -> List[str]:
     # Get the full file paths of the input files to process
     files_to_process = [inputs_dict[sample] for sample in samples_to_process]
     
-    return files_to_process
+    return input_files, output_files, files_to_process
 
 def run_genoflu(fasta_file: str, config: dict) -> None:
     """Run the analysis on a FASTA file and save result to results_dir."""
