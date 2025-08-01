@@ -11,10 +11,11 @@ import logging
 DEFAULT_SCAN_INTERVAL_SECONDS = 300
 
 from auto_genoflu._analysis import find_files_to_process, run_genoflu
-from auto_genoflu._tools import load_config
+from auto_genoflu._tools import prelim_checks, load_config
 
 def run_auto_analysis(config: dict) -> None:
     # Ensure output directory exists
+    os.makedirs(config['rename_dir'], exist_ok=True)
     os.makedirs(config['output_dir'], exist_ok=True)
     os.makedirs(config['provenance_dir'], exist_ok=True)
     
@@ -45,8 +46,7 @@ def main() -> None:
     logging.basicConfig(
         format='{"timestamp": "%(asctime)s.%(msecs)03d", "level": "%(levelname)s", "module": "%(module)s", "function_name": "%(funcName)s", "message": %(message)s}',
         datefmt='%Y-%m-%dT%H:%M:%S',
-        encoding='utf-8',
-        level=logging.INFO,
+        level=args.log_level,
     )
     logging.debug(json.dumps({"event_type": "debug_logging_enabled"}))
 
@@ -72,7 +72,7 @@ def get_args():
     """Main function to parse arguments and process files."""
     parser = argparse.ArgumentParser(description="Process FASTA files and run analysis")
     parser.add_argument('-c', "--config", required=True, help="JSON config file")
-    parser.add_argument('--log-level', choices=['debug', 'info', 'warning', 'error'], default='info')
+    parser.add_argument('--log-level', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'], type=str.upper, default='info')
     return parser.parse_args()    
 
 

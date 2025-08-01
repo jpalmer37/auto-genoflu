@@ -41,7 +41,7 @@ def rename_fasta_headers(input_path: str, output_path: str) -> None:
     Returns:
         None
     """
-    fn_dict = {'cfia': _rename_cfia, }
+    fn_dict = {'cfia': _rename_cfia, 'gisaid': _rename_gisaid}
 
     file_name = os.path.basename(input_path)
     count = file_name.count("_") + file_name.count("-")
@@ -52,7 +52,7 @@ def rename_fasta_headers(input_path: str, output_path: str) -> None:
     
     elif re.search("EPI[-_]ISL", file_name, flags=re.IGNORECASE):
         logging.debug(json.dumps({"event_type": "renaming_gisaid_headers", "file_name": file_name}))
-        _rename_seqs(fn_dict['cfia'], input_path, output_path)
+        _rename_seqs(fn_dict['gisaid'], input_path, output_path)
     else:
         logging.warning(json.dumps({"event_type": "unknown_file_type_detected", "file_name": file_name}))
         _rename_seqs(fn_dict['cfia'], input_path, output_path)
