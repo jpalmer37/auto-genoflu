@@ -2,7 +2,6 @@ import os
 from glob import glob
 import argparse
 import subprocess
-from typing import List, Set, Tuple, Dict
 import json
 import datetime 
 import time
@@ -10,8 +9,8 @@ import logging
 
 DEFAULT_SCAN_INTERVAL_SECONDS = 300
 
-from auto_genoflu._analysis import find_files_to_process, run_genoflu
-from auto_genoflu._tools import prelim_checks, load_config
+from auto_genoflu._analysis import find_files_to_process, run_genoflu, prelim_checks
+from auto_genoflu._tools import load_config
 
 def run_auto_analysis(config: dict) -> None:
     # Ensure output directory exists
@@ -49,6 +48,7 @@ def main() -> None:
         level=args.log_level,
     )
     logging.debug(json.dumps({"event_type": "debug_logging_enabled"}))
+    
 
     while(True):
         try:
@@ -58,6 +58,8 @@ def main() -> None:
             # If we fail to load the config file, we continue on with the
             # last valid config that was loaded.
             logging.error(json.dumps({"event_type": "load_config_failed", "config_file": os.path.abspath(args.config)}))
+
+        prelim_checks(config)
 
         run_auto_analysis(config)
 
