@@ -7,22 +7,36 @@ import json
 import logging
 import shutil
 
-from auto_genoflu._tools import get_input_name, get_output_name, make_symlink, compute_hash, load_config, glob_single
+from auto_genoflu._tools import get_input_name, get_output_name, make_symlink, compute_hash, load_config, glob_single, make_folder
+from auto_genoflu._nextcloud import nc_upload_file
 from auto_genoflu._rename import rename_fasta_headers
 
-def get_genoflu_env():
-    genoflu_path = subprocess.check_output(['which', 'genoflu.py']).decode('utf-8').strip()
-    genoflu_env = os.path.dirname(os.path.dirname(genoflu_path))
-    return genoflu_env
+def get_genoflu_env_path():
+    try:
+        genoflu_bin_path = subprocess.check_output(['which', 'genoflu.py']).decode('utf-8').strip()
+        genoflu_env_path = os.path.dirname(os.path.dirname(genoflu_bin_path))
 
+    except subprocess.CalledProcessError:
+        logging.error(json.dumps({"event_type": "genoflu_not_found", "error": "genoflu.py not found in PATH"}))
+        raise FileNotFoundError("genoflu.py not found in PATH")
+
+    return genoflu_env_path
+
+def prelim_checks(config: dict) -> None:
+    """Perform preliminary checks on the configuration."""
+    for dir_name in ['input_dir', 'rename_dir', 'output_dir', 'provenance_dir']:
+        if not os.path.exists(config[dir_name]):
+            logging.info(json.dumps({"event_type": f"{dir_name}_not_found", "dir_path": config[dir_name]}))
+            make_folder(config[dir_name])
 
 def find_files_to_process(config: dict) -> Tuple[List[str], List[str], List[str]]:
     """Find FASTA files in input_dir that haven't been processed in output_dir."""
     # Get all FASTA files from input directory
     input_files = glob(os.path.join(config['input_dir'], "*.fa")) + \
-                 glob(os.path.join(config['input_dir'], "*.fasta"))
+                 glob(os.path.join(config['input_dir'], "*.fasta")) + \
+                 glob(os.path.join(config['input_dir'], "*.fna"))
     
-    # Get all CSV files from output directory
+    # Get all TSV output files from output directory
     output_files = glob(os.path.join(config['output_dir'], "*.tsv"))
     
     # Extract sample names
@@ -38,7 +52,7 @@ def find_files_to_process(config: dict) -> Tuple[List[str], List[str], List[str]
         # Check if provenance file exists
         provenance_path = os.path.join(config['provenance_dir'], f"{name}__genoflu_complete.json")
         if not os.path.exists(provenance_path):
-            logging.warning(json.dumps({"event_type": "provenance_file_missing", "provenance_file": os.path.join(config['provenance_dir'], f"{name}__genoflu_complete.json")}))
+            logging.warning(json.dumps({"event_type": "provenance_file_missing", "provenance_file": provenance_path}))
             samples_to_process.add(name)
             continue
         
@@ -67,51 +81,56 @@ def run_genoflu(fasta_file: str, config: dict) -> None:
     sample_name = get_input_name(fasta_file)
     
     # Construct output filename
-    output_file = os.path.join(config['output_dir'], f"{sample_name}__genoflu.tsv")
-    renamed_filepath = os.path.join(config['rename_dir'], f"{sample_name}__input.fasta")
-    input_filepath = f'./{sample_name}__input.fasta'
+    input_filename = f'{sample_name}__input.fasta'
+    rename_fasta_path = os.path.join(config['rename_dir'], input_filename)
+    output_tsv_path = os.path.join(config['output_dir'], f"{sample_name}__genoflu.tsv")
     # Build and run the command
     try:
 
-        genoflu_env = get_genoflu_env()
+        genoflu_env_path = get_genoflu_env_path()
 
         # need this because genoflu is stupid 
-        rename_fasta_headers(fasta_file, renamed_filepath)
-        make_symlink(renamed_filepath, input_filepath)
+        rename_fasta_headers(fasta_file, rename_fasta_path)
+        make_symlink(rename_fasta_path, f"./{input_filename}")
 
         # Replace this with your actual command
         cmd = [ f"genoflu.py",
-            "-i", f"{genoflu_env}/dependencies/fastas/",
-            "-c", f"{genoflu_env}/dependencies/genotype_key.xlsx",
-            "-f", input_filepath,
+            "-i", f"{genoflu_env_path}/dependencies/fastas/",
+            "-c", f"{genoflu_env_path}/dependencies/genotype_key.xlsx",
+            "-f", input_filename,
             "-n", sample_name
         ]
         
         # Run the subprocess
         result = subprocess.run(cmd, check=True, capture_output=True)
 
-        tsv_file = glob_single(f'./{sample_name}*stats.tsv')
-        xlsx_file = glob_single(f'./{sample_name}*stats.xlsx')
-
-        shutil.move(tsv_file, output_file)
+        tsv_filename = glob_single(f'./{sample_name}*stats.tsv')
+        xlsx_filename = glob_single(f'./{sample_name}*stats.xlsx')
 
         input_hash = compute_hash(fasta_file)
-        output_hash = compute_hash(output_file)
+        output_hash = compute_hash(output_tsv_path)
 
         genoflu_complete = {
             "timestamp_analysis_complete": datetime.datetime.now().isoformat(),
             "input_file": fasta_file,
             "input_hash": input_hash,
-            "output_file": output_file,
+            "output_file": output_tsv_path,
             "output_hash": output_hash
         }
 
-        with open(os.path.join(config['provenance_dir'], f"{sample_name}__genoflu_complete.json"), "w") as f:
+        with open(f"{sample_name}__genoflu_complete.json", "w") as f:
             json.dump(genoflu_complete, f)
 
+        provenance_filename = f"{sample_name}__genoflu_complete.json"
+        provenance_path = os.path.join(config['provenance_dir'], provenance_filename)
+
+        nc_upload_file(tsv_filename, output_tsv_path)
+        nc_upload_file(provenance_filename, provenance_path)
+
         # Remove the temporary files
-        os.remove(xlsx_file)
-        os.remove(input_filepath)
+        for f in [rename_fasta_path, tsv_filename, xlsx_filename, provenance_filename]:
+            if os.path.exists(f):
+                os.remove(f)
 
         
     except subprocess.CalledProcessError as e:
