@@ -93,7 +93,7 @@ def nc_make_folder(remote_folder_path):
             auth=HTTPBasicAuth(credentials['USERNAME'], credentials['PASSWORD']),
         )
         
-        if response.status_code in [201, 405]:  # 201 Created, 405 Method Not Allowed (folder already exists)
+        if response.status_code in [201, 405, 409]:  # 201 Created, 405 Method Not Allowed (folder already exists)
             logging.info(json.dumps({"event_type": "folder_creation_success", "remote_folder_path": remote_folder_path}))
             return True
         else:
