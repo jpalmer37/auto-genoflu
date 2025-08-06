@@ -7,15 +7,32 @@ import json
 from typing import Callable
 
 def _rename_seqs(rename_fn: Callable, input_path: str, output_path: str) -> None:
+    logging.debug(json.dumps({
+        "event_type": "rename_sequences_start",
+        "input_path": input_path,
+        "output_path": output_path,
+        "rename_function": rename_fn.__name__
+    }))
 
+    header_count = 0
     with open(input_path, "r") as infile, open(output_path, "w") as outfile:
         
         for line in infile.readlines():
             if line.startswith(">"):
-                new_header = rename_fn(line.rstrip().lstrip(">"))
+                original_header = line.rstrip().lstrip(">")
+                new_header = rename_fn(original_header)
                 outfile.write(f">{new_header}\n")
+                header_count += 1
             else:
                 outfile.write(line)
+    
+    logging.debug(json.dumps({
+        "event_type": "rename_sequences_complete",
+        "input_path": input_path,
+        "output_path": output_path,
+        "rename_function": rename_fn.__name__,
+        "headers_renamed": header_count
+    }))
 
 def _rename_cfia(fasta_header: str) -> str: 
     new_header = fasta_header
