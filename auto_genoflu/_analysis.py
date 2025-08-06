@@ -13,12 +13,15 @@ from auto_genoflu._rename import rename_fasta_headers
 
 def get_genoflu_env_path():
     try:
+        logging.debug(json.dumps({"event_type": "locating_genoflu_env_path"}))
         genoflu_bin_path = subprocess.check_output(['which', 'genoflu.py']).decode('utf-8').strip()
         genoflu_env_path = os.path.dirname(os.path.dirname(genoflu_bin_path))
 
     except subprocess.CalledProcessError:
         logging.error(json.dumps({"event_type": "genoflu_not_found", "error": "genoflu.py not found in PATH"}))
         raise FileNotFoundError("genoflu.py not found in PATH")
+
+    logging.debug(json.dumps({"event_type": "genoflu_env_path_found", "genoflu_env_path": genoflu_env_path}))
 
     return genoflu_env_path
 
@@ -31,6 +34,8 @@ def prelim_checks(config: dict) -> None:
 
 def find_files_to_process(config: dict) -> Tuple[List[str], List[str], List[str]]:
     """Find FASTA files in input_dir that haven't been processed in output_dir."""
+    logging.debug(json.dumps({"event_type": "find_files_to_process_start", "input_dir": config['input_dir'], "output_dir": config['output_dir']}))
+    
     # Get all FASTA files from input directory
     input_files = glob(os.path.join(config['input_dir'], "*.fa")) + \
                  glob(os.path.join(config['input_dir'], "*.fasta")) + \
@@ -39,11 +44,15 @@ def find_files_to_process(config: dict) -> Tuple[List[str], List[str], List[str]
     # Get all TSV output files from output directory
     output_files = glob(os.path.join(config['output_dir'], "*.tsv"))
     
+    logging.debug(json.dumps({"event_type": "file_discovery", "input_files_count": len(input_files), "output_files_count": len(output_files)}))
+    
     # Extract sample names
     inputs_dict = {get_input_name(f): f for f in input_files}
     outputs_dict = {get_output_name(f): f for f in output_files}
 
     existing_samples = set(inputs_dict.keys()) & set(outputs_dict.keys())
+    
+    logging.debug(json.dumps({"event_type": "existing_samples", "existing_samples_count": len(existing_samples)}))
 
     # Find samples that need to be processed
     samples_to_process = set()
@@ -103,12 +112,33 @@ def run_genoflu(fasta_file: str, config: dict) -> None:
         
         # Run the subprocess
         result = subprocess.run(cmd, check=True, capture_output=True)
+        
+        logging.debug(json.dumps({
+            "event_type": "subprocess_output",
+            "sample_name": sample_name,
+            "stdout": result.stdout.decode('utf-8')[:500],  # First 500 chars to avoid overwhelming logs
+            "stderr": result.stderr.decode('utf-8')[:500] if result.stderr else ""
+        }))
 
         tsv_filename = glob_single(f'./{sample_name}*stats.tsv')
         xlsx_filename = glob_single(f'./{sample_name}*stats.xlsx')
+        
+        logging.debug(json.dumps({
+            "event_type": "output_files_discovered",
+            "sample_name": sample_name,
+            "tsv_filename": tsv_filename,
+            "xlsx_filename": xlsx_filename
+        }))
 
         input_hash = compute_hash(fasta_file)
         output_hash = compute_hash(output_tsv_path)
+        
+        logging.debug(json.dumps({
+            "event_type": "file_hashes_computed",
+            "sample_name": sample_name,
+            "input_hash": input_hash,
+            "output_hash": output_hash
+        }))
 
         genoflu_complete = {
             "timestamp_analysis_complete": datetime.datetime.now().isoformat(),
@@ -124,20 +154,24 @@ def run_genoflu(fasta_file: str, config: dict) -> None:
         provenance_filename = f"{sample_name}__genoflu_complete.json"
         provenance_path = os.path.join(config['provenance_dir'], provenance_filename)
 
+        logging.debug(json.dumps({"event_type": "uploading_files", "sample_name": sample_name, "tsv_filename": tsv_filename, "provenance_filename": provenance_filename}))
         nc_upload_file(tsv_filename, output_tsv_path)
         nc_upload_file(provenance_filename, provenance_path)
 
         # Remove the temporary files
+        logging.debug(json.dumps({"event_type": "removing_temporary_files", "sample_name": sample_name, "files": [rename_fasta_path, tsv_filename, xlsx_filename, provenance_filename]}))
         for f in [rename_fasta_path, tsv_filename, xlsx_filename, provenance_filename]:
             if os.path.exists(f):
                 os.remove(f)
+        
+        logging.debug(json.dumps({"event_type": "run_genoflu_complete", "sample_name": sample_name}))
 
         
     except subprocess.CalledProcessError as e:
-        logging.error(json.dumps({"event_name": "genoflu_failed", "sample_name": sample_name, "error": str(e)}))
+        logging.error(json.dumps({"event_name": "genoflu_failed", "sample_name": sample_name, "error": str(e), "command": " ".join(cmd), "stderr": e.stderr.decode('utf-8') if e.stderr else ""}))
 
     except (IOError, FileNotFoundError) as e:
-        logging.error(json.dumps({"event_name": "genoflu_failed_file_error", "sample_name": sample_name, "error": str(e)}))
+        logging.error(json.dumps({"event_name": "genoflu_failed_file_error", "sample_name": sample_name, "error": str(e), "files": [rename_fasta_path, input_filename, output_tsv_path]}))
 
     except (KeyError) as e:
         logging.error(json.dumps({"event_name": "genoflu_failed_key_error", "sample_name": sample_name, "error": str(e)}))
