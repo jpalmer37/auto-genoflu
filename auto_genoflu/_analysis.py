@@ -130,6 +130,8 @@ def run_genoflu(fasta_file: str, config: dict) -> None:
             "xlsx_filename": xlsx_filename
         }))
 
+        nc_upload_file(tsv_filename, output_tsv_path)
+
         input_hash = compute_hash(fasta_file)
         output_hash = compute_hash(output_tsv_path)
         
@@ -155,7 +157,7 @@ def run_genoflu(fasta_file: str, config: dict) -> None:
         provenance_path = os.path.join(config['provenance_dir'], provenance_filename)
 
         logging.debug(json.dumps({"event_type": "uploading_files", "sample_name": sample_name, "tsv_filename": tsv_filename, "provenance_filename": provenance_filename}))
-        nc_upload_file(tsv_filename, output_tsv_path)
+        
         nc_upload_file(provenance_filename, provenance_path)
 
         # Remove the temporary files
