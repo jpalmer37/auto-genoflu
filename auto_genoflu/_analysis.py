@@ -26,7 +26,7 @@ def get_genoflu_env_path():
 
 def prelim_checks(config: dict) -> None:
     """Perform preliminary checks on the configuration."""
-    for dir_name in ['input_dir_local', 'rename_dir_local', 'output_dir_local', 'provenance_dir']:
+    for dir_name in ['input_dir_local', 'output_dir_local', 'provenance_dir']:
         if not os.path.exists(config[dir_name]):
             logging.info(json.dumps({"event_type": f"{dir_name}_not_found", "dir_path": config[dir_name]}))
             make_folder(config[dir_name])
@@ -90,9 +90,14 @@ def run_genoflu(fasta_file: str, config: dict) -> None:
     
     # Construct output filename
     input_filename = f'{sample_name}__input.fasta'
-    rename_fasta_path = os.path.join(config['rename_dir_local'], input_filename)
+
+    rename_fasta_path = os.path.join(config['rename_dir'], input_filename)
+    
     output_tsv_path = os.path.join(config['output_dir_local'], f"{sample_name}__genoflu.tsv")
     output_tsv_path_nc = os.path.join(config['output_dir'], f"{sample_name}__genoflu.tsv")
+
+    provenance_filename = f"{sample_name}__genoflu_complete.json"
+    provenance_path_nc = os.path.join(config['provenance_dir'], provenance_filename)
 
     # Build and run the command
     try:
@@ -154,12 +159,9 @@ def run_genoflu(fasta_file: str, config: dict) -> None:
         with open(f"{sample_name}__genoflu_complete.json", "w") as f:
             json.dump(genoflu_complete, f)
 
-        provenance_filename = f"{sample_name}__genoflu_complete.json"
-        provenance_path = os.path.join(config['provenance_dir'], provenance_filename)
-
         logging.debug(json.dumps({"event_type": "uploading_files", "sample_name": sample_name, "tsv_filename": tsv_filename, "provenance_filename": provenance_filename}))
         
-        copy_file(provenance_filename, provenance_path)
+        copy_file(provenance_filename, provenance_path_nc)
 
         # Remove the temporary files
         logging.debug(json.dumps({"event_type": "removing_temporary_files", "sample_name": sample_name, "files": [rename_fasta_path, tsv_filename, xlsx_filename, provenance_filename]}))
