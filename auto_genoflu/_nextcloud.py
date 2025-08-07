@@ -4,6 +4,7 @@ import requests
 from requests.auth import HTTPBasicAuth
 import json
 import logging 
+import re 
 
 def load_credentials():
     AUTH_USER = os.getenv('NEXTCLOUD_API_USERNAME')  # You can change this token as needed
@@ -37,6 +38,7 @@ def nc_upload_file(local_file_path, remote_file_path):
         logging.error(json.dumps({"event_type": "upload_failed_local_file_not_found", "local_file_path": local_file_path}))
         raise FileNotFoundError
     
+    remote_file_path = re.sub(f'^.+/files/', '', remote_file_path)  # Remove any leading path to ensure correct upload path
     
     # Construct the full URL
     url_dest = f"{credentials['URL']}/{remote_file_path}"
@@ -83,6 +85,8 @@ def nc_make_folder(remote_folder_path):
     """
     credentials = load_credentials()
     
+    remote_folder_path = re.sub(f'^.+/files/', '', remote_folder_path)  # Remove any leading path to ensure correct upload path
+
     # Construct the full URL
     url_dest = f"{credentials['URL']}/{remote_folder_path}"
     
