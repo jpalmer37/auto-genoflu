@@ -8,15 +8,24 @@ import logging
 def load_credentials():
     AUTH_USER = os.getenv('NEXTCLOUD_API_USERNAME')  # You can change this token as needed
     AUTH_PASSWORD = os.getenv('NEXTCLOUD_API_PASSWORD')  # You can change this token as needed
-    BASE_URL = os.getenv('NEXTCLOUD_API_URL')
+    URL = os.getenv('NEXTCLOUD_API_URL')
 
-    if not all([AUTH_USER, AUTH_PASSWORD, BASE_URL]):
-        logging.error(json.dumps({"event_type": "missing_required_environment_variables", "url": BASE_URL, "user": AUTH_USER}))
+    if not all([AUTH_USER, AUTH_PASSWORD, URL]):
+        logging.error(json.dumps({"event_type": "missing_required_environment_variables", "url": URL, "user": AUTH_USER}))
         raise ValueError
     
-    API_URL = f"{BASE_URL}/{AUTH_USER}"
-    return { "USERNAME": AUTH_USER,  "PASSWORD": AUTH_PASSWORD, "URL": API_URL}
+    return { "USERNAME": AUTH_USER,  "PASSWORD": AUTH_PASSWORD, "URL": URL}
 
+
+def convert_nextcloud_path_to_local(path: str, nc_mount_path: str) -> str:
+    if not path.startswith("nc://"):
+        return path
+
+    credentials = load_credentials()
+    # Remove "nc://" prefix and construct full URL
+    remote_file_path = path.replace("nc://", "")
+    remote_file_path = os.path.join(nc_mount_path, credentials['USERNAME'], 'files', remote_file_path)
+    return remote_file_path
 
 def nc_upload_file(local_file_path, remote_file_path):
     """
@@ -37,20 +46,25 @@ def nc_upload_file(local_file_path, remote_file_path):
         logging.error(json.dumps({"event_type": "upload_failed_local_file_not_found", "local_file_path": local_file_path}))
         raise FileNotFoundError
     
+    # Handle Nextcloud destination
+    if not remote_file_path.startswith("nc://"):
+        logging.error(json.dumps({"event_type": "upload_failed_invalid_remote_path", "remote_file_path": remote_file_path}))
+        raise ValueError
     
-    # Construct the full URL
-    url_dest = f"{credentials['URL']}/{remote_file_path}"
+    # Remove "nc://" prefix and construct full URL
+    remote_file_path = remote_file_path.replace("nc://", "")
+    remote_url_path = os.path.join(credentials['URL'], remote_file_path)
     
     try:
         # Get file size for progress reporting
         file_size = os.path.getsize(local_file_path)
-        logging.info(json.dumps({"event_type": "upload_start", "file_size_mb": round(file_size / 1024 / 1024, 2), "remote_file_path": remote_file_path}))
+        logging.info(json.dumps({"event_type": "upload_start", "file_size_kb": round(file_size / 1024, 2), "remote_file_path": remote_file_path}))
         
         # Open the file in binary mode and stream it to avoid loading large files into memory
         with open(local_file_path, 'rb') as file:
             # PUT request with file content as body
             response = requests.put(
-                url_dest,
+                remote_url_path,
                 auth=HTTPBasicAuth(credentials['USERNAME'], credentials['PASSWORD']),
                 data=file,  # Stream file content
                 headers={
@@ -82,14 +96,20 @@ def nc_make_folder(remote_folder_path):
         bool: True if folder creation was successful, False otherwise
     """
     credentials = load_credentials()
+
+    # Handle Nextcloud destination
+    if not remote_folder_path.startswith("nc://"):
+        logging.error(json.dumps({"event_type": "folder_creation_failed_invalid_remote_path", "remote_folder_path": remote_folder_path}))
+        raise ValueError
     
-    # Construct the full URL
-    url_dest = f"{credentials['URL']}/{remote_folder_path}"
+    # Remove "nc://" prefix and construct full URL
+    remote_folder_path = remote_folder_path.replace("nc://", "")
+    remote_url_path = os.path.join(credentials['URL'], remote_folder_path)
     
     try:
         response = requests.request(
             "MKCOL",
-            url_dest,
+            remote_url_path,
             auth=HTTPBasicAuth(credentials['USERNAME'], credentials['PASSWORD']),
         )
         

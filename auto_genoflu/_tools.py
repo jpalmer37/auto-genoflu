@@ -4,43 +4,51 @@ import subprocess
 from typing import List, Set, Tuple, Dict
 import json 
 import logging
+import shutil 
 
-from auto_genoflu._nextcloud import nc_make_folder
+from auto_genoflu._nextcloud import nc_make_folder, nc_upload_file, load_credentials, convert_nextcloud_path_to_local
 
 def load_config(config_file: str) -> Dict[str, str]:
-    logging.debug(json.dumps({
-        "event_type": "loading_config_file",
-        "config_file": config_file
-    }))
-    
+    logging.debug(json.dumps({"event_type": "loading_config_file", "config_file": config_file}))
+
     try:
         with open(config_file, "r") as f:
             config = json.load(f)
         
-        logging.debug(json.dumps({
-            "event_type": "config_file_loaded",
-            "config_file": config_file,
-            "config_keys": list(config.keys())
-        }))
+        logging.debug(json.dumps({"event_type": "config_file_loaded", "config_file": config_file, "config": config}))
         
+        for path in ['input_dir', 'output_dir', 'provenance_dir']:
+            config[path + "_local"] = convert_nextcloud_path_to_local(config[path], config['nc_data_mount_dir'])
+
+        logging.debug(json.dumps({"event_type": "config_paths_converted", "config_file": config_file, "config": config}))
+
         return config
     except (IOError, json.JSONDecodeError) as e:
-        logging.error(json.dumps({
-            "event_type": "config_file_load_error",
-            "config_file": config_file,
-            "error": str(e)
-        }))
+        logging.error(json.dumps({"event_type": "config_file_load_error", "config_file": config_file, "error": str(e)}))
         raise
+
+def copy_file(src, dst):
+    if dst.startswith("nc://"):
+        logging.debug(json.dumps({"event_type": "copying_file_to_nextcloud", "src": src, "remote_path": dst}))
+        nc_upload_file(src, dst)
+    
+    else:
+        # Handle local destination
+        logging.debug(json.dumps({"event_type": "copying_file_locally", "src": src, "dst": dst}))
+        shutil.copy2(src, dst)
+    
+    logging.debug(json.dumps({"event_type": "file_copied", "src": src, "dst": dst}))
+
 
 def make_folder(dir_path: str) -> None:
     logging.debug(json.dumps({
         "event_type": "creating_folder",
         "dir_path": dir_path,
-        "folder_type": "nextcloud" if dir_path.startswith("/data") else "local"
+        "folder_type": "nextcloud" if dir_path.startswith("nc://") else "local"
     }))
     
     try:
-        if dir_path.startswith("/data"):
+        if dir_path.startswith("nc://"):
             nc_make_folder(dir_path)
         else:
             os.makedirs(dir_path, exist_ok=True)
@@ -50,19 +58,11 @@ def make_folder(dir_path: str) -> None:
             "dir_path": dir_path
         }))
     except Exception as e:
-        logging.error(json.dumps({
-            "event_type": "folder_creation_error",
-            "dir_path": dir_path,
-            "error": str(e)
-        }))
+        logging.error(json.dumps({"event_type": "folder_creation_error", "dir_path": dir_path, "error": str(e)}))
         raise
 
 def make_symlink(src: str, dst: str) -> None:
-    logging.debug(json.dumps({
-        "event_type": "creating_symlink",
-        "src": src,
-        "dst": dst
-    }))
+    logging.debug(json.dumps({"event_type": "creating_symlink", "src": src, "dst": dst}))
     
     try:
         if os.path.exists(dst):

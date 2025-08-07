@@ -7,8 +7,7 @@ import json
 import logging
 import shutil
 
-from auto_genoflu._tools import get_input_name, get_output_name, make_symlink, compute_hash, load_config, glob_single, make_folder
-from auto_genoflu._nextcloud import nc_upload_file
+from auto_genoflu._tools import get_input_name, get_output_name, make_symlink, compute_hash, load_config, glob_single, make_folder, copy_file
 from auto_genoflu._rename import rename_fasta_headers
 
 def get_genoflu_env_path():
@@ -27,22 +26,22 @@ def get_genoflu_env_path():
 
 def prelim_checks(config: dict) -> None:
     """Perform preliminary checks on the configuration."""
-    for dir_name in ['input_dir', 'rename_dir', 'output_dir', 'provenance_dir']:
+    for dir_name in ['input_dir_local', 'rename_dir_local', 'output_dir_local', 'provenance_dir']:
         if not os.path.exists(config[dir_name]):
             logging.info(json.dumps({"event_type": f"{dir_name}_not_found", "dir_path": config[dir_name]}))
             make_folder(config[dir_name])
 
 def find_files_to_process(config: dict) -> Tuple[List[str], List[str], List[str]]:
-    """Find FASTA files in input_dir that haven't been processed in output_dir."""
-    logging.debug(json.dumps({"event_type": "find_files_to_process_start", "input_dir": config['input_dir'], "output_dir": config['output_dir']}))
+    """Find FASTA files in input_dir_local that haven't been processed in output_dir."""
+    logging.debug(json.dumps({"event_type": "find_files_to_process_start", "input_dir_local": config['input_dir_local'], "output_dir_local": config['output_dir_local']}))
     
     # Get all FASTA files from input directory
-    input_files = glob(os.path.join(config['input_dir'], "*.fa")) + \
-                 glob(os.path.join(config['input_dir'], "*.fasta")) + \
-                 glob(os.path.join(config['input_dir'], "*.fna"))
+    input_files = glob(os.path.join(config['input_dir_local'], "*.fa")) + \
+                 glob(os.path.join(config['input_dir_local'], "*.fasta")) + \
+                 glob(os.path.join(config['input_dir_local'], "*.fna"))
     
     # Get all TSV output files from output directory
-    output_files = glob(os.path.join(config['output_dir'], "*.tsv"))
+    output_files = glob(os.path.join(config['output_dir_local'], "*.tsv"))
     
     logging.debug(json.dumps({"event_type": "file_discovery", "input_files_count": len(input_files), "output_files_count": len(output_files)}))
     
@@ -91,8 +90,10 @@ def run_genoflu(fasta_file: str, config: dict) -> None:
     
     # Construct output filename
     input_filename = f'{sample_name}__input.fasta'
-    rename_fasta_path = os.path.join(config['rename_dir'], input_filename)
-    output_tsv_path = os.path.join(config['output_dir'], f"{sample_name}__genoflu.tsv")
+    rename_fasta_path = os.path.join(config['rename_dir_local'], input_filename)
+    output_tsv_path = os.path.join(config['output_dir_local'], f"{sample_name}__genoflu.tsv")
+    output_tsv_path_nc = os.path.join(config['output_dir'], f"{sample_name}__genoflu.tsv")
+
     # Build and run the command
     try:
 
@@ -130,7 +131,7 @@ def run_genoflu(fasta_file: str, config: dict) -> None:
             "xlsx_filename": xlsx_filename
         }))
 
-        nc_upload_file(tsv_filename, output_tsv_path)
+        copy_file(tsv_filename, output_tsv_path_nc)
 
         input_hash = compute_hash(fasta_file)
         output_hash = compute_hash(output_tsv_path)
@@ -158,7 +159,7 @@ def run_genoflu(fasta_file: str, config: dict) -> None:
 
         logging.debug(json.dumps({"event_type": "uploading_files", "sample_name": sample_name, "tsv_filename": tsv_filename, "provenance_filename": provenance_filename}))
         
-        nc_upload_file(provenance_filename, provenance_path)
+        copy_file(provenance_filename, provenance_path)
 
         # Remove the temporary files
         logging.debug(json.dumps({"event_type": "removing_temporary_files", "sample_name": sample_name, "files": [rename_fasta_path, tsv_filename, xlsx_filename, provenance_filename]}))
