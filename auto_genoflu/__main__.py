@@ -37,7 +37,8 @@ def run_auto_analysis(config: dict) -> None:
         run_genoflu(fasta_file, config)
         logging.info(json.dumps({"event_type": "analysis_complete",  "fasta_file": fasta_file }))    
 
-    make_summary_file(config)
+    if len(output_files) > 0 and len(files_to_process) > 0:
+        make_summary_file(config)
 
 def main() -> None:
     """Main function to parse arguments and process files."""

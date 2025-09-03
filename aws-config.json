@@ -5,5 +5,5 @@
 	"provenance_dir": "/data/service-jpalmer/files/analysis/avian_flu/auto_genoflu/logs/",
 	"summary_dir": "/data/service-jpalmer/files/analysis/avian_flu/auto_genoflu/summary/",
 	"glob_expressions": ["*.fa", "*.fasta", "*.fna"],
-	"scan_interval_seconds": 30
+	"scan_interval_seconds": 60
 }
