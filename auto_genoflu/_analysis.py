@@ -5,7 +5,6 @@ import subprocess
 import datetime
 import json
 import logging
-import shutil
 
 from auto_genoflu._tools import get_input_name, get_output_name, make_symlink, compute_hash, load_config, glob_single, make_folder
 from auto_genoflu._nextcloud import nc_upload_file

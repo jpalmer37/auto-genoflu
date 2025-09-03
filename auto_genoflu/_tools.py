@@ -5,6 +5,7 @@ from typing import List, Set, Tuple, Dict
 import json 
 import logging
 from datetime import datetime
+from auto_genoflu._nextcloud import nc_make_folder
 
 def prelim_checks(config: dict) -> None:
     """Perform preliminary checks on the configuration."""
@@ -200,14 +201,18 @@ def collectfile(output_file, input_files):
 
 
 def make_summary_file(config: dict) -> None:
-    timestamp = datetime.now().strftime('%y-%m-%d_%H-%M')
+    timestamp = datetime.now().strftime('%y-%m-%d_%H-%M-%S')
+
+    if not os.path.exists(config['summary_dir']) or not os.path.exists(os.path.join(config['summary_dir'], "archive")):
+        logging.info(json.dumps({"event_type": "summary_dir_not_formatted_properly", "summary_dir": config['summary_dir']}))
+        raise ValueError
 
     output_file = os.path.join(config['summary_dir'], f"genoflu_summary_{timestamp}")  # output filename with timestamp
     input_files = glob(os.path.join(config['output_dir'], "*genoflu.tsv"))
 
     try:
         collectfile(output_file, input_files)
-    
+
     except ValueError:
         logging.info(json.dumps({"event_type": "no_input_files", "input_files_count": len(input_files)}))
         pass
