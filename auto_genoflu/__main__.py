@@ -37,7 +37,7 @@ def run_auto_analysis(config: dict) -> None:
         run_genoflu(fasta_file, config)
         logging.info(json.dumps({"event_type": "analysis_complete",  "fasta_file": fasta_file }))    
 
-    if len(output_files) > 0 and len(files_to_process) > 0:
+    if len(files_to_process) > 0:
         make_summary_file(config)
 
 def main() -> None:
