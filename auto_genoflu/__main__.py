@@ -9,8 +9,8 @@ import logging
 
 DEFAULT_SCAN_INTERVAL_SECONDS = 300
 
-from auto_genoflu._analysis import find_files_to_process, run_genoflu, prelim_checks
-from auto_genoflu._tools import load_config
+from auto_genoflu._analysis import find_genoflu_files_to_process, run_genoflu, prelim_checks
+from auto_genoflu._tools import load_config, make_summary_file
 
 def run_auto_analysis(config: dict) -> None:
     # Ensure output directory exists
@@ -21,7 +21,7 @@ def run_auto_analysis(config: dict) -> None:
     # Find files that need to be processed
     scan_start_timestamp = datetime.datetime.now()
 
-    input_files, output_files, files_to_process = find_files_to_process(config)
+    input_files, output_files, files_to_process = find_genoflu_files_to_process(config)
 
     scan_complete_timestamp = datetime.datetime.now()
     scan_duration_delta = scan_complete_timestamp - scan_start_timestamp
@@ -37,6 +37,8 @@ def run_auto_analysis(config: dict) -> None:
         run_genoflu(fasta_file, config)
         logging.info(json.dumps({"event_type": "analysis_complete",  "fasta_file": fasta_file }))    
 
+    if len(files_to_process) > 0:
+        make_summary_file(config)
 
 def main() -> None:
     """Main function to parse arguments and process files."""
