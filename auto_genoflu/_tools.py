@@ -215,7 +215,7 @@ def make_summary_file(config: dict) -> None:
     input_files = glob(os.path.join(config['output_dir'], "*genoflu.tsv"))
 
     try:
-        collectfile(output_file, tmp_file)
+        collectfile(tmp_file, input_files)
 
         nc_upload_file(tmp_file, output_file)
 
