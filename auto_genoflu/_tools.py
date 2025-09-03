@@ -1,11 +1,31 @@
-import os
+import os, sys
 from glob import glob
 import subprocess
 from typing import List, Set, Tuple, Dict
 import json 
 import logging
+from datetime import datetime
 
-from auto_genoflu._nextcloud import nc_make_folder
+def prelim_checks(config: dict) -> None:
+    """Perform preliminary checks on the configuration."""
+    if not os.path.exists(config['input_dir']):
+        raise FileNotFoundError(f"Input directory does not exist: {config['input_dir']}")
+    
+    if not os.path.exists(config['rename_dir']):
+        logging.info(json.dumps({"event_type": "rename_dir_not_found", "rename_dir": config['rename_dir']}))
+        os.makedirs(config['rename_dir'])
+    
+    if not os.path.exists(config['output_dir']):
+        logging.info(json.dumps({"event_type": "output_dir_not_found", "output_dir": config['output_dir']}))
+        os.makedirs(config['output_dir'])
+    
+    if not os.path.exists(config['provenance_dir']):
+        logging.info(json.dumps({"event_type": "provenance_dir_not_found", "provenance_dir": config['provenance_dir']}))
+        os.makedirs(config['provenance_dir'])
+
+    if not os.path.exists(config['summary_dir']):
+        logging.info(json.dumps({"event_type": "summary_dir_not_found", "summary_dir": config['summary_dir']}))
+        os.makedirs(config['summary_dir'])
 
 def load_config(config_file: str) -> Dict[str, str]:
     logging.debug(json.dumps({
@@ -152,3 +172,45 @@ def glob_single(pattern: str):
     
     return file_list[0]
 
+def collectfile(output_file, input_files):
+    # Check argument count
+    if len(input_files) < 1:
+        print("ERROR: No input files provided.")
+        raise ValueError
+    
+    # Check if output file already exists
+    if os.path.exists(output_file):
+        print("ERROR: Output file already exists.")
+        raise FileExistsError
+    
+    # Open output file in write mode
+    with open(output_file, 'w') as outfile:
+        # Read and write header from first file
+        with open(input_files[0], 'r') as first_file:
+            header = first_file.readline()
+            outfile.write(header)
+        
+        # Append non-header lines from all files
+        for file in input_files:
+            with open(file, 'r') as infile:
+                # Skip header for subsequent files
+                next(infile, None)
+                # Write remaining lines
+                outfile.writelines(infile)
+
+
+def make_summary_file(config: dict) -> None:
+    timestamp = datetime.now().strftime('%y-%m-%d_%H-%M')
+
+    output_file = os.path.join(config['summary_dir'], f"genoflu_summary_{timestamp}")  # output filename with timestamp
+    input_files = glob(os.path.join(config['output_dir'], "*genoflu.tsv"))
+
+    try:
+        collectfile(output_file, input_files)
+    
+    except ValueError:
+        logging.info(json.dumps({"event_type": "no_input_files", "input_files_count": len(input_files)}))
+        pass
+    except FileExistsError:
+        logging.info(json.dumps({"event_type": "output_file_exists", "output_file": output_file}))
+        pass
