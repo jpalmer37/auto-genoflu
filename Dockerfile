@@ -4,15 +4,13 @@ FROM condaforge/miniforge3:latest
 # Set the working directory in the container
 WORKDIR /app
 
-# 2. Copy ONLY the dependency definition files first
-COPY environment.yml pyproject.toml ./
+# Copy the current directory contents into the container at /app
+COPY . /app
 
-RUN mamba env create -f environment.yml && \
-    mamba clean -afy
+# Install any necessary build tools and dependencies
+RUN mamba env create -f environment.yml
 
 RUN mkdir -p /home/ubuntu/genoflu/{rename,outputs,logs} && mkdir -p /data
-
-COPY . .
 
 # Set the default command to run your application
 ENTRYPOINT ["mamba", "run", "-n", "auto-genoflu", "auto_genoflu"]
