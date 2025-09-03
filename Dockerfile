@@ -5,7 +5,7 @@ FROM condaforge/miniforge3:latest
 WORKDIR /app
 
 # 2. Copy ONLY the dependency definition files first
-COPY environment.yml ./
+COPY environment.yml pyproject.toml ./
 
 RUN mamba env create -f environment.yml && \
     mamba clean -afy
