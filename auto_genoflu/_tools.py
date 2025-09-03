@@ -5,7 +5,7 @@ from typing import List, Set, Tuple, Dict
 import json 
 import logging
 from datetime import datetime
-from auto_genoflu._nextcloud import nc_make_folder
+from auto_genoflu._nextcloud import nc_make_folder, nc_upload_file
 
 def prelim_checks(config: dict) -> None:
     """Perform preliminary checks on the configuration."""
@@ -207,11 +207,16 @@ def make_summary_file(config: dict) -> None:
         logging.info(json.dumps({"event_type": "summary_dir_not_formatted_properly", "summary_dir": config['summary_dir']}))
         raise ValueError
 
-    output_file = os.path.join(config['summary_dir'], f"genoflu_summary_{timestamp}")  # output filename with timestamp
+    tmp_file = os.path.join(config['rename_dir'], f"genoflu_summary_{timestamp}.tsv")
+    output_file = os.path.join(config['summary_dir'], f"genoflu_summary_{timestamp}.tsv")  # output filename with timestamp
     input_files = glob(os.path.join(config['output_dir'], "*genoflu.tsv"))
 
     try:
-        collectfile(output_file, input_files)
+        collectfile(output_file, tmp_file)
+
+        nc_upload_file(tmp_file, output_file)
+
+        os.remove(tmp_file)
 
     except ValueError:
         logging.info(json.dumps({"event_type": "no_input_files", "input_files_count": len(input_files)}))
