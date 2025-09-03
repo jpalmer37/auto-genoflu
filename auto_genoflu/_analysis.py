@@ -32,14 +32,16 @@ def prelim_checks(config: dict) -> None:
             logging.info(json.dumps({"event_type": f"{dir_name}_not_found", "dir_path": config[dir_name]}))
             make_folder(config[dir_name])
 
-def find_files_to_process(config: dict) -> Tuple[List[str], List[str], List[str]]:
+def find_genoflu_files_to_process(config: dict) -> Tuple[List[str], List[str], List[str]]:
     """Find FASTA files in input_dir that haven't been processed in output_dir."""
-    logging.debug(json.dumps({"event_type": "find_files_to_process_start", "input_dir": config['input_dir'], "output_dir": config['output_dir']}))
+    logging.debug(json.dumps({"event_type": "find_genoflu_files_to_process_start", "input_dir": config['input_dir'], "output_dir": config['output_dir']}))
     
     # Get all FASTA files from input directory
-    input_files = glob(os.path.join(config['input_dir'], "*.fa")) + \
-                 glob(os.path.join(config['input_dir'], "*.fasta")) + \
-                 glob(os.path.join(config['input_dir'], "*.fna"))
+
+    input_files = []
+    for expr in config['glob_expressions']:
+        input_files += glob(os.path.join(config['input_dir'], expr))
+
     
     # Get all TSV output files from output directory
     output_files = glob(os.path.join(config['output_dir'], "*.tsv"))
