@@ -176,13 +176,13 @@ def glob_single(pattern: str):
 def collectfile(output_file, input_files):
     # Check argument count
     if len(input_files) < 1:
-        print("ERROR: No input files provided.")
-        raise ValueError
+        logging.warning(json.dumps({"event_type": "collectfile_no_input_files", "input_files": input_files}))
+        return
     
     # Check if output file already exists
     if os.path.exists(output_file):
-        print("ERROR: Output file already exists.")
-        raise FileExistsError
+        logging.warning(json.dumps({"event_type": "collectfile_output_file_exists", "output_file": output_file}))
+        return 
     
     # Open output file in write mode
     with open(output_file, 'w') as outfile:
@@ -199,8 +199,11 @@ def collectfile(output_file, input_files):
                 # Write remaining lines
                 outfile.writelines(infile)
 
+    logging.debug(json.dumps({"event_type": "collectfile_complete", "output_file": output_file, "input_files": input_files}))
 
 def make_summary_file(config: dict) -> None:
+    logging.debug(json.dumps({"event_type": "make_summary_file"}))
+
     timestamp = datetime.now().strftime('%y-%m-%d_%H-%M-%S')
 
     if not os.path.exists(config['summary_dir']) or not os.path.exists(os.path.join(config['summary_dir'], "archive")):
@@ -218,6 +221,7 @@ def make_summary_file(config: dict) -> None:
 
         os.remove(tmp_file)
 
+        logging.info(json.dumps({"event_type": "make_summary_file_complete", "output_file": output_file}))
     except ValueError:
         logging.info(json.dumps({"event_type": "no_input_files", "input_files_count": len(input_files)}))
         pass
