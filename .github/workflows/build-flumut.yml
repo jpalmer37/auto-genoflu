@@ -1,0 +1,50 @@
+name: Build auto-flumut Docker Image
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'auto_flumut/**'
+      - 'Dockerfile-flumut'
+      - 'environment-flumut.yml'
+      - 'pyproject.toml'
+  pull_request:
+    paths:
+      - 'auto_flumut/**'
+      - 'Dockerfile-flumut'
+      - 'environment-flumut.yml'
+      - 'pyproject.toml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+    
+    - name: Build Docker image
+      run: |
+        docker build -f Dockerfile-flumut -t auto-flumut:test .
+    
+    - name: Test Docker image
+      run: |
+        docker run --rm auto-flumut:test --help
+    
+    # Optional: Push to registry on main branch
+    # - name: Login to Docker Hub
+    #   if: github.ref == 'refs/heads/main'
+    #   uses: docker/login-action@v2
+    #   with:
+    #     username: ${{ secrets.DOCKER_USERNAME }}
+    #     password: ${{ secrets.DOCKER_PASSWORD }}
+    #
+    # - name: Push to Docker Hub
+    #   if: github.ref == 'refs/heads/main'
+    #   run: |
+    #     docker tag auto-flumut:test username/auto-flumut:latest
+    #     docker push username/auto-flumut:latest
