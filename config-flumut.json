@@ -1,0 +1,6 @@
+{
+	"input_dir": "/path/to/flumut/inputs/",
+	"output_dir": "/path/to/flumut/outputs/",
+	"provenance_dir": "/path/to/flumut/logs/",
+	"scan_interval_seconds": 180
+}

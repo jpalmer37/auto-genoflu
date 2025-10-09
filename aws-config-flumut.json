@@ -1,0 +1,6 @@
+{
+	"input_dir": "/data/service-jpalmer/files/analysis/avian_flu/auto_flumut/inputs/",
+	"output_dir": "/data/service-jpalmer/files/analysis/avian_flu/auto_flumut/outputs/",
+	"provenance_dir": "/data/service-jpalmer/files/analysis/avian_flu/auto_flumut/logs/",
+	"scan_interval_seconds": 30
+}

@@ -1,0 +1,11 @@
+name: auto-flumut
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - python=3.9
+  - pip
+  - flumut
+  - requests
+  - pip:
+    - .
