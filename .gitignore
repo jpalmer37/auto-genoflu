@@ -1,5 +1,6 @@
 dev-config.json
 prod-config.json
+prod-config-flumut.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

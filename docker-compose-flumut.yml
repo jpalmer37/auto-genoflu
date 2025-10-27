@@ -1,0 +1,5 @@
+services:
+  auto-flumut:
+    image: auto-flumut:v0.1.0
+    volumes:
+      - ./prod-config-flumut.json:/data/config.json

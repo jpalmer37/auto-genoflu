@@ -12,6 +12,7 @@ license = {file = "LICENSE"}  # Optional, if you have a LICENSE file
 
 [project.scripts]
 auto_genoflu = "auto_genoflu.__main__:main"
+auto_flumut = "auto_flumut.__main__:main"
 
 [tool.setuptools]
-packages = ["auto_genoflu"]
+packages = ["auto_genoflu", "auto_flumut"]
