@@ -59,6 +59,9 @@ def main() -> None:
             # last valid config that was loaded.
             logging.error(json.dumps({"event_type": "load_config_failed", "config_file": os.path.abspath(args.config)}))
 
+        # Add use_nextcloud flag to config
+        config['use_nextcloud'] = args.use_nextcloud
+
         prelim_checks(config)
 
         run_auto_analysis(config)
@@ -75,6 +78,7 @@ def get_args():
     parser = argparse.ArgumentParser(description="Process FASTA files and run analysis")
     parser.add_argument('-c', "--config", required=True, help="JSON config file")
     parser.add_argument('--log-level', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'], type=str.upper, default='info')
+    parser.add_argument('--use-nextcloud', action='store_true', help="Use Nextcloud for file uploads instead of local file system operations")
     return parser.parse_args()    
 
 

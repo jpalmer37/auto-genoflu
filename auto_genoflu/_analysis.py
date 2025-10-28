@@ -8,7 +8,7 @@ import logging
 import shutil
 
 from auto_genoflu._tools import get_input_name, get_output_name, make_symlink, compute_hash, load_config, glob_single, make_folder
-from auto_genoflu._nextcloud import nc_upload_file
+from auto_genoflu._nextcloud import nc_upload_file, local_move_file
 from auto_genoflu._rename import rename_fasta_headers
 
 def get_genoflu_env_path():
@@ -27,10 +27,11 @@ def get_genoflu_env_path():
 
 def prelim_checks(config: dict) -> None:
     """Perform preliminary checks on the configuration."""
+    use_nextcloud = config.get('use_nextcloud', False)
     for dir_name in ['input_dir', 'rename_dir', 'output_dir', 'provenance_dir']:
         if not os.path.exists(config[dir_name]):
             logging.info(json.dumps({"event_type": f"{dir_name}_not_found", "dir_path": config[dir_name]}))
-            make_folder(config[dir_name])
+            make_folder(config[dir_name], use_nextcloud)
 
 def find_files_to_process(config: dict) -> Tuple[List[str], List[str], List[str]]:
     """Find FASTA files in input_dir that haven't been processed in output_dir."""
@@ -130,7 +131,11 @@ def run_genoflu(fasta_file: str, config: dict) -> None:
             "xlsx_filename": xlsx_filename
         }))
 
-        nc_upload_file(tsv_filename, output_tsv_path)
+        # Upload or move the TSV file based on configuration
+        if config.get('use_nextcloud', False):
+            nc_upload_file(tsv_filename, output_tsv_path)
+        else:
+            local_move_file(tsv_filename, output_tsv_path)
 
         input_hash = compute_hash(fasta_file)
         output_hash = compute_hash(output_tsv_path)
@@ -158,7 +163,11 @@ def run_genoflu(fasta_file: str, config: dict) -> None:
 
         logging.debug(json.dumps({"event_type": "uploading_files", "sample_name": sample_name, "tsv_filename": tsv_filename, "provenance_filename": provenance_filename}))
         
-        nc_upload_file(provenance_filename, provenance_path)
+        # Upload or move the provenance file based on configuration
+        if config.get('use_nextcloud', False):
+            nc_upload_file(provenance_filename, provenance_path)
+        else:
+            local_move_file(provenance_filename, provenance_path)
 
         # Remove the temporary files
         logging.debug(json.dumps({"event_type": "removing_temporary_files", "sample_name": sample_name, "files": [rename_fasta_path, tsv_filename, xlsx_filename, provenance_filename]}))

@@ -5,15 +5,19 @@ from requests.auth import HTTPBasicAuth
 import json
 import logging 
 import re 
+import shutil 
 
-def load_credentials():
+def load_credentials(require_credentials=True):
     AUTH_USER = os.getenv('NEXTCLOUD_API_USERNAME')  # You can change this token as needed
     AUTH_PASSWORD = os.getenv('NEXTCLOUD_API_PASSWORD')  # You can change this token as needed
     BASE_URL = os.getenv('NEXTCLOUD_API_URL')
 
     if not all([AUTH_USER, AUTH_PASSWORD, BASE_URL]):
-        logging.error(json.dumps({"event_type": "missing_required_environment_variables", "url": BASE_URL, "user": AUTH_USER}))
-        raise ValueError
+        if require_credentials:
+            logging.error(json.dumps({"event_type": "missing_required_environment_variables", "url": BASE_URL, "user": AUTH_USER}))
+            raise ValueError
+        else:
+            return None
     
     API_URL = f"{BASE_URL}/{AUTH_USER}"
     return { "USERNAME": AUTH_USER,  "PASSWORD": AUTH_PASSWORD, "URL": API_URL}
@@ -106,4 +110,40 @@ def nc_make_folder(remote_folder_path):
             
     except requests.exceptions.RequestException as e:
         logging.error(json.dumps({"event_type": "folder_creation_exception", "error": str(e), "remote_folder_path": remote_folder_path}))
+        return False
+
+def local_move_file(local_source_path, local_dest_path):
+    """
+    Move a local file to a destination path using shutil.move.
+    
+    Args:
+        local_source_path (str): Path to the local source file
+        local_dest_path (str): Destination path where the file should be moved
+    
+    Returns:
+        bool: True if move was successful, False otherwise
+    """
+    # Check if local file exists
+    if not os.path.exists(local_source_path):
+        logging.error(json.dumps({"event_type": "move_failed_local_file_not_found", "local_source_path": local_source_path}))
+        raise FileNotFoundError
+    
+    try:
+        # Get file size for progress reporting
+        file_size = os.path.getsize(local_source_path)
+        logging.info(json.dumps({"event_type": "move_start", "file_size_mb": round(file_size / 1024 / 1024, 2), "local_dest_path": local_dest_path}))
+        
+        # Ensure destination directory exists
+        dest_dir = os.path.dirname(local_dest_path)
+        if dest_dir and not os.path.exists(dest_dir):
+            os.makedirs(dest_dir, exist_ok=True)
+        
+        # Move the file
+        shutil.copy2(local_source_path, local_dest_path)
+        
+        logging.info(json.dumps({"event_type": "move_success", "local_dest_path": local_dest_path}))
+        return True
+            
+    except Exception as e:
+        logging.error(json.dumps({"event_type": "move_failed_exception", "error": str(e), "local_dest_path": local_dest_path}))
         return False
