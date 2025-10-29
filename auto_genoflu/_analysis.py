@@ -194,8 +194,7 @@ def run_genoflu(fasta_file: str, config: dict) -> None:
         # Remove the temporary files
         logging.debug(json.dumps({"event_type": "removing_temporary_files", "sample_name": sample_name, "files": [rename_fasta_path, tsv_filename, xlsx_filename, provenance_filename, symlink_path]}))
         for f in [rename_fasta_path, tsv_filename, xlsx_filename, provenance_filename, symlink_path]:
-            if os.path.exists(f):
-                os.remove(f)
+            os.remove(f)
         
         logging.debug(json.dumps({"event_type": "run_genoflu_complete", "sample_name": sample_name}))
 
