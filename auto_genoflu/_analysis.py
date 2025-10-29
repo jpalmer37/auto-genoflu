@@ -94,14 +94,31 @@ def run_genoflu(fasta_file: str, config: dict) -> None:
     input_filename = f'{sample_name}__input.fasta'
     rename_fasta_path = os.path.join(config['rename_dir'], input_filename)
     output_tsv_path = os.path.join(config['output_dir'], f"{sample_name}__genoflu.tsv")
+    
+    # Get working directory from config, default to current directory
+    working_dir = config.get('working_directory', os.getcwd())
+    
+    # Save the original working directory to restore later
+    original_dir = os.getcwd()
+    
     # Build and run the command
     try:
+        # Change to working directory if specified
+        if working_dir != original_dir:
+            os.makedirs(working_dir, exist_ok=True)
+            os.chdir(working_dir)
+            logging.debug(json.dumps({
+                "event_type": "working_directory_changed",
+                "from": original_dir,
+                "to": working_dir
+            }))
 
         genoflu_env_path = get_genoflu_env_path()
 
         # need this because genoflu is stupid 
         rename_fasta_headers(fasta_file, rename_fasta_path)
-        make_symlink(rename_fasta_path, f"./{input_filename}")
+        symlink_path = f"./{input_filename}"
+        make_symlink(rename_fasta_path, symlink_path)
 
         # Replace this with your actual command
         cmd = [ f"genoflu.py",
@@ -170,8 +187,8 @@ def run_genoflu(fasta_file: str, config: dict) -> None:
             local_move_file(provenance_filename, provenance_path)
 
         # Remove the temporary files
-        logging.debug(json.dumps({"event_type": "removing_temporary_files", "sample_name": sample_name, "files": [rename_fasta_path, tsv_filename, xlsx_filename, provenance_filename]}))
-        for f in [rename_fasta_path, tsv_filename, xlsx_filename, provenance_filename]:
+        logging.debug(json.dumps({"event_type": "removing_temporary_files", "sample_name": sample_name, "files": [rename_fasta_path, tsv_filename, xlsx_filename, provenance_filename, symlink_path]}))
+        for f in [rename_fasta_path, tsv_filename, xlsx_filename, provenance_filename, symlink_path]:
             if os.path.exists(f):
                 os.remove(f)
         
@@ -186,3 +203,12 @@ def run_genoflu(fasta_file: str, config: dict) -> None:
 
     except (KeyError) as e:
         logging.error(json.dumps({"event_name": "genoflu_failed_key_error", "sample_name": sample_name, "error": str(e)}))
+    
+    finally:
+        # Always restore the original working directory
+        if os.getcwd() != original_dir:
+            os.chdir(original_dir)
+            logging.debug(json.dumps({
+                "event_type": "working_directory_restored",
+                "to": original_dir
+            }))

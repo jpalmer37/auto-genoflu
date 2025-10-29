@@ -55,6 +55,16 @@ The configuration file should be a JSON file with the following structure:
     "rename_dir": "/path/to/genoflu/rename/",
     "output_dir": "/path/to/genoflu/outputs/",
     "provenance_dir": "/path/to/genoflu/logs/",
-    "scan_interval_seconds": 180
+    "scan_interval_seconds": 180,
+    "working_directory": "/path/to/working/dir"
 }
 ```
+
+#### Configuration Parameters
+
+- **`input_dir`** (required): Directory containing input FASTA files
+- **`rename_dir`** (required): Directory for renamed FASTA files
+- **`output_dir`** (required): Directory for output TSV files
+- **`provenance_dir`** (required): Directory for provenance/log files
+- **`scan_interval_seconds`** (optional): Time in seconds between scans for new files (default: 300)
+- **`working_directory`** (optional): Directory where genoflu will execute and create temporary files. If not specified, defaults to the current working directory where `auto_genoflu` is run. This helps keep temporary files and symlinks organized in a dedicated location.

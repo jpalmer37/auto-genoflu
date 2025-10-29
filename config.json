@@ -3,5 +3,6 @@
 	"rename_dir": "/path/to/genoflu/rename/",
 	"output_dir": "/path/to/genoflu/outputs/",
 	"provenance_dir": "/path/to/genoflu/logs/",
-	"scan_interval_seconds": 180
+	"scan_interval_seconds": 180,
+	"working_directory": "/path/to/working/dir"
 }
