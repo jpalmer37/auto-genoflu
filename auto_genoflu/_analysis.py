@@ -28,7 +28,12 @@ def get_genoflu_env_path():
 def prelim_checks(config: dict) -> None:
     """Perform preliminary checks on the configuration."""
     use_nextcloud = config.get('use_nextcloud', False)
-    for dir_name in ['input_dir', 'rename_dir', 'output_dir', 'provenance_dir']:
+    
+    # Derive rename_dir from work_dir
+    rename_dir = os.path.join(config['work_dir'], 'rename')
+    config['rename_dir'] = rename_dir
+    
+    for dir_name in ['input_dir', 'work_dir', 'rename_dir', 'output_dir', 'provenance_dir']:
         if not os.path.exists(config[dir_name]):
             logging.info(json.dumps({"event_type": f"{dir_name}_not_found", "dir_path": config[dir_name]}))
             make_folder(config[dir_name], use_nextcloud)
@@ -96,7 +101,7 @@ def run_genoflu(fasta_file: str, config: dict) -> None:
     output_tsv_path = os.path.join(config['output_dir'], f"{sample_name}__genoflu.tsv")
     
     # Get working directory from config, default to current directory
-    working_dir = config.get('working_directory', os.getcwd())
+    working_dir = config.get('work_dir', os.getcwd())
     
     # Save the original working directory to restore later
     original_dir = os.getcwd()
