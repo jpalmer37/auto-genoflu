@@ -1,7 +1,7 @@
 {
 	"input_dir": "/path/to/genoflu/inputs/",
-	"rename_dir": "/path/to/genoflu/rename/",
 	"output_dir": "/path/to/genoflu/outputs/",
 	"provenance_dir": "/path/to/genoflu/logs/",
+	"work_dir": "/path/to/working/dir",
 	"scan_interval_seconds": 180
 }

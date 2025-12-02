@@ -53,15 +53,19 @@ def load_config(config_file: str) -> Dict[str, str]:
         }))
         raise
 
-def make_folder(dir_path: str) -> None:
+def make_folder(dir_path: str, use_nextcloud: bool = None) -> None:
+    # If use_nextcloud is not explicitly set, try to infer from path
+    if use_nextcloud is None:
+        use_nextcloud = dir_path.startswith("/data")
+    
     logging.debug(json.dumps({
         "event_type": "creating_folder",
         "dir_path": dir_path,
-        "folder_type": "nextcloud" if dir_path.startswith("/data") else "local"
+        "folder_type": "nextcloud" if use_nextcloud else "local"
     }))
     
     try:
-        if dir_path.startswith("/data"):
+        if use_nextcloud:
             nc_make_folder(dir_path)
         else:
             os.makedirs(dir_path, exist_ok=True)

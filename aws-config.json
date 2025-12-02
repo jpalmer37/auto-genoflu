@@ -1,9 +1,9 @@
 {
 	"input_dir": "/data/service-jpalmer/files/analysis/avian_flu/auto_genoflu/inputs/",
-	"rename_dir": "/home/ubuntu/genoflu/rename/",
 	"output_dir": "/data/service-jpalmer/files/analysis/avian_flu/auto_genoflu/outputs/",
 	"provenance_dir": "/data/service-jpalmer/files/analysis/avian_flu/auto_genoflu/logs/",
 	"summary_dir": "/data/service-jpalmer/files/analysis/avian_flu/auto_genoflu/summary/",
 	"glob_expressions": ["*.fa", "*.fasta", "*.fna"],
-	"scan_interval_seconds": 60
+	"work_dir": "/home/ubuntu/genoflu/work",
+  "scan_interval_seconds": 60
 }
