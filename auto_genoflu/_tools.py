@@ -5,28 +5,20 @@ from typing import List, Set, Tuple, Dict
 import json 
 import logging
 from datetime import datetime
-from auto_genoflu._nextcloud import nc_make_folder, nc_upload_file
+from auto_genoflu.operations import make_folder, move_file
 
 def prelim_checks(config: dict) -> None:
     """Perform preliminary checks on the configuration."""
     if not os.path.exists(config['input_dir']):
         raise FileNotFoundError(f"Input directory does not exist: {config['input_dir']}")
     
-    if not os.path.exists(config['rename_dir']):
-        logging.info(json.dumps({"event_type": "rename_dir_not_found", "rename_dir": config['rename_dir']}))
-        os.makedirs(config['rename_dir'])
-    
-    if not os.path.exists(config['output_dir']):
-        logging.info(json.dumps({"event_type": "output_dir_not_found", "output_dir": config['output_dir']}))
-        os.makedirs(config['output_dir'])
-    
-    if not os.path.exists(config['provenance_dir']):
-        logging.info(json.dumps({"event_type": "provenance_dir_not_found", "provenance_dir": config['provenance_dir']}))
-        os.makedirs(config['provenance_dir'])
+    use_nextcloud = config.get('use_nextcloud', False)
+    dirs_to_create = ['rename_dir', 'output_dir', 'provenance_dir', 'summary_dir']
+    for dir_key in dirs_to_create:
+        if not os.path.exists(config[dir_key]):
+            logging.info(json.dumps({"event_type": f"{dir_key}_not_found", dir_key: config[dir_key]}))
+            make_folder(config[dir_key], use_nextcloud=use_nextcloud)
 
-    if not os.path.exists(config['summary_dir']):
-        logging.info(json.dumps({"event_type": "summary_dir_not_found", "summary_dir": config['summary_dir']}))
-        os.makedirs(config['summary_dir'])
 
 def load_config(config_file: str) -> Dict[str, str]:
     logging.debug(json.dumps({
@@ -49,35 +41,6 @@ def load_config(config_file: str) -> Dict[str, str]:
         logging.error(json.dumps({
             "event_type": "config_file_load_error",
             "config_file": config_file,
-            "error": str(e)
-        }))
-        raise
-
-def make_folder(dir_path: str, use_nextcloud: bool = None) -> None:
-    # If use_nextcloud is not explicitly set, try to infer from path
-    if use_nextcloud is None:
-        use_nextcloud = dir_path.startswith("/data")
-    
-    logging.debug(json.dumps({
-        "event_type": "creating_folder",
-        "dir_path": dir_path,
-        "folder_type": "nextcloud" if use_nextcloud else "local"
-    }))
-    
-    try:
-        if use_nextcloud:
-            nc_make_folder(dir_path)
-        else:
-            os.makedirs(dir_path, exist_ok=True)
-        
-        logging.debug(json.dumps({
-            "event_type": "folder_created",
-            "dir_path": dir_path
-        }))
-    except Exception as e:
-        logging.error(json.dumps({
-            "event_type": "folder_creation_error",
-            "dir_path": dir_path,
             "error": str(e)
         }))
         raise
@@ -185,7 +148,7 @@ def collectfile(output_file, input_files):
     
     # Check if output file already exists
     if os.path.exists(output_file):
-        logging.warning(json.dumps({"event_type": "collectfile_output_file_exists", "output_file": output_file}))
+        logging.warning(json.dumps({"event_type": "collectfile_output_exists", "output_file": output_file}))
         return 
     
     # Open output file in write mode
@@ -203,25 +166,23 @@ def collectfile(output_file, input_files):
                 # Write remaining lines
                 outfile.writelines(infile)
 
-    logging.debug(json.dumps({"event_type": "collectfile_complete", "output_file": output_file, "input_files": input_files}))
+    logging.info(json.dumps({"event_type": "collectfile_complete", "output_file": output_file, "input_files": input_files}))
 
 def make_summary_file(config: dict) -> None:
-    logging.debug(json.dumps({"event_type": "make_summary_file"}))
+    logging.info(json.dumps({"event_type": "make_summary_file_start"}))
 
     timestamp = datetime.now().strftime('%y-%m-%d_%H-%M-%S')
 
-    if not os.path.exists(config['summary_dir']) or not os.path.exists(os.path.join(config['summary_dir'], "archive")):
-        logging.info(json.dumps({"event_type": "summary_dir_not_formatted_properly", "summary_dir": config['summary_dir']}))
-        raise ValueError
+    output_filename = f"GenoFLU_summary_{timestamp}.tsv"
 
-    tmp_file = os.path.join(config['rename_dir'], f"genoflu_summary_{timestamp}.tsv")
-    output_file = os.path.join(config['summary_dir'], f"genoflu_summary_{timestamp}.tsv")  # output filename with timestamp
+    tmp_file = os.path.join(config['work_dir'], output_filename)
+    output_file = os.path.join(config['summary_dir'], output_filename)  
     input_files = glob(os.path.join(config['output_dir'], "*genoflu.tsv"))
 
     try:
         collectfile(tmp_file, input_files)
 
-        nc_upload_file(tmp_file, output_file)
+        move_file(tmp_file, output_file, use_nextcloud=config.get('use_nextcloud', False))
 
         os.remove(tmp_file)
 

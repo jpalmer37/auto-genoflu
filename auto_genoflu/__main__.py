@@ -11,12 +11,14 @@ DEFAULT_SCAN_INTERVAL_SECONDS = 300
 
 from auto_genoflu._analysis import find_genoflu_files_to_process, run_genoflu, prelim_checks
 from auto_genoflu._tools import load_config, make_summary_file
+from auto_genoflu.operations import make_folder
 
 def run_auto_analysis(config: dict) -> None:
     # Ensure output directory exists
-    os.makedirs(config['rename_dir'], exist_ok=True)
-    os.makedirs(config['output_dir'], exist_ok=True)
-    os.makedirs(config['provenance_dir'], exist_ok=True)
+    use_nextcloud = config.get('use_nextcloud', False)
+    make_folder(config['rename_dir'], use_nextcloud=use_nextcloud)
+    make_folder(config['output_dir'], use_nextcloud=use_nextcloud)
+    make_folder(config['provenance_dir'], use_nextcloud=use_nextcloud)
     
     # Find files that need to be processed
     scan_start_timestamp = datetime.datetime.now()
