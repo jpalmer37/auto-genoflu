@@ -5,10 +5,9 @@ import subprocess
 import datetime
 import json
 import logging
-import shutil
 
-from auto_genoflu._tools import get_input_name, get_output_name, make_symlink, compute_hash, load_config, glob_single, make_folder
-from auto_genoflu._nextcloud import nc_upload_file, local_move_file
+from auto_genoflu._tools import get_input_name, get_output_name, make_symlink, compute_hash, load_config, glob_single
+from auto_genoflu.operations import move_file, make_folder
 from auto_genoflu._rename import rename_fasta_headers
 
 def get_genoflu_env_path():
@@ -38,14 +37,16 @@ def prelim_checks(config: dict) -> None:
             logging.info(json.dumps({"event_type": f"{dir_name}_not_found", "dir_path": config[dir_name]}))
             make_folder(config[dir_name], use_nextcloud)
 
-def find_files_to_process(config: dict) -> Tuple[List[str], List[str], List[str]]:
+def find_genoflu_files_to_process(config: dict) -> Tuple[List[str], List[str], List[str]]:
     """Find FASTA files in input_dir that haven't been processed in output_dir."""
-    logging.debug(json.dumps({"event_type": "find_files_to_process_start", "input_dir": config['input_dir'], "output_dir": config['output_dir']}))
+    logging.debug(json.dumps({"event_type": "find_genoflu_files_to_process_start", "input_dir": config['input_dir'], "output_dir": config['output_dir']}))
     
     # Get all FASTA files from input directory
-    input_files = glob(os.path.join(config['input_dir'], "*.fa")) + \
-                 glob(os.path.join(config['input_dir'], "*.fasta")) + \
-                 glob(os.path.join(config['input_dir'], "*.fna"))
+
+    input_files = []
+    for expr in config['glob_expressions']:
+        input_files += glob(os.path.join(config['input_dir'], expr))
+
     
     # Get all TSV output files from output directory
     output_files = glob(os.path.join(config['output_dir'], "*.tsv"))
@@ -110,7 +111,7 @@ def run_genoflu(fasta_file: str, config: dict) -> None:
     try:
         # Change to working directory if specified
         if working_dir != original_dir:
-            os.makedirs(working_dir, exist_ok=True)
+            make_folder(working_dir, use_nextcloud=False)  # work directory is not allowed to be on nextcloud
             os.chdir(working_dir)
             logging.debug(json.dumps({
                 "event_type": "working_directory_changed",
@@ -154,10 +155,8 @@ def run_genoflu(fasta_file: str, config: dict) -> None:
         }))
 
         # Upload or move the TSV file based on configuration
-        if config.get('use_nextcloud', False):
-            nc_upload_file(tsv_filename, output_tsv_path)
-        else:
-            local_move_file(tsv_filename, output_tsv_path)
+        use_nextcloud = config.get('use_nextcloud', False)
+        move_file(tsv_filename, output_tsv_path, use_nextcloud=use_nextcloud)
 
         input_hash = compute_hash(fasta_file)
         output_hash = compute_hash(output_tsv_path)
@@ -186,10 +185,7 @@ def run_genoflu(fasta_file: str, config: dict) -> None:
         logging.debug(json.dumps({"event_type": "uploading_files", "sample_name": sample_name, "tsv_filename": tsv_filename, "provenance_filename": provenance_filename}))
         
         # Upload or move the provenance file based on configuration
-        if config.get('use_nextcloud', False):
-            nc_upload_file(provenance_filename, provenance_path)
-        else:
-            local_move_file(provenance_filename, provenance_path)
+        move_file(provenance_filename, provenance_path, use_nextcloud=use_nextcloud)
 
         # Remove the temporary files
         logging.debug(json.dumps({"event_type": "removing_temporary_files", "sample_name": sample_name, "files": [rename_fasta_path, tsv_filename, xlsx_filename, provenance_filename, symlink_path]}))
