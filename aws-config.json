@@ -5,5 +5,5 @@
 	"summary_dir": "/data/service-jpalmer/files/analysis/avian_flu/auto_genoflu/summary/",
 	"glob_expressions": ["*.fa", "*.fasta", "*.fna"],
 	"work_dir": "/home/ubuntu/genoflu/work",
-  "scan_interval_seconds": 60
+	"scan_interval_seconds": 60
 }
