@@ -126,6 +126,7 @@ def run_genoflu(fasta_file: str, config: dict) -> None:
         cmd = [ f"{genoflu_env_path}/bin/genoflu.py",
             "-i", f"{genoflu_env_path}/dependencies/fastas/",
             "-c", f"{genoflu_env_path}/dependencies/genotype_key.xlsx",
+            "-p", str(config.get('id_threshold', 98.0)),
             "-f", input_filename,
             "-n", sample_name
         ]
