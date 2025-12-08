@@ -7,5 +7,7 @@ dependencies:
   - pip
   - genoflu=1.06
   - requests
+  - setuptools=80
+  - submitit=1.5.2
   - pip:
     - .
