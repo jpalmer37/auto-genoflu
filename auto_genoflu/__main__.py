@@ -35,31 +35,32 @@ def run_auto_analysis(config: dict) -> None:
 
 
     # Process each file
-    if config.get('use_slurm', False):
-
-        logging.info(json.dumps({"event_type": "initializing_slurm_executor"}))
-        executor = init_slurm_executor(config)
-        logging.info(json.dumps({"event_type": "submitting_slurm_array", "n_tasks": len(files_to_process)}))
-        job_list = run_slurm_array(
-            executor,
-            run_genoflu,
-            files_to_process,
-            [config]*len(files_to_process)
-        )
-        logging.info(json.dumps({"event_type": "slurm_analysis_completed", "n_tasks": len(files_to_process)}))
-
-        completed_jobs = [job for job in job_list if job.state == "COMPLETED"]
-
-        for job in completed_jobs:
-            delete_files(os.path.join(config['slurm_params'].get("log_dir", "slurm_logs"), f"{job.job_id}*"))
-
-    else:
-        logging.info(json.dumps({"event_type": "using_local_processing_for_analysis"}))
-        for fasta_file in files_to_process:
-            run_genoflu(fasta_file, config)
-            logging.info(json.dumps({"event_type": "analysis_complete",  "fasta_file": fasta_file }))    
-
     if len(files_to_process) > 0:
+        if config.get('use_slurm', False):
+
+            logging.info(json.dumps({"event_type": "initializing_slurm_executor"}))
+            executor = init_slurm_executor(config)
+            logging.info(json.dumps({"event_type": "submitting_slurm_array", "n_tasks": len(files_to_process)}))
+            job_list = run_slurm_array(
+                executor,
+                run_genoflu,
+                files_to_process,
+                [config]*len(files_to_process)
+            )
+            logging.info(json.dumps({"event_type": "slurm_analysis_completed", "n_tasks": len(files_to_process)}))
+
+            completed_jobs = [job for job in job_list if job.state == "COMPLETED"]
+
+            for job in completed_jobs:
+                delete_files(os.path.join(config['slurm_params'].get("log_dir", "slurm_logs"), f"{job.job_id}*"))
+            logging.info(json.dumps({"event_type": "slurm_logs_deleted", "deleted_jobs": [job.job_id for job in completed_jobs]}))
+        else:
+            logging.info(json.dumps({"event_type": "using_local_processing_for_analysis"}))
+            for fasta_file in files_to_process:
+                run_genoflu(fasta_file, config)
+                logging.info(json.dumps({"event_type": "analysis_complete",  "fasta_file": fasta_file }))    
+
+        
         make_summary_file(config)
 
 def main() -> None:
