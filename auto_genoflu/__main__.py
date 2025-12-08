@@ -1,17 +1,16 @@
 import os
 from glob import glob
 import argparse
-import subprocess
 import json
 import datetime 
 import time
 import logging 
-import submitit
+
 
 DEFAULT_SCAN_INTERVAL_SECONDS = 300
 
 from auto_genoflu._analysis import find_genoflu_files_to_process, run_genoflu, prelim_checks
-from auto_genoflu._tools import load_config, make_summary_file
+from auto_genoflu._tools import load_config, make_summary_file, delete_files
 from auto_genoflu.operations import make_folder
 from auto_genoflu.slurm import init_slurm_executor, run_slurm_array
 
@@ -41,14 +40,19 @@ def run_auto_analysis(config: dict) -> None:
         logging.info(json.dumps({"event_type": "initializing_slurm_executor"}))
         executor = init_slurm_executor(config)
         logging.info(json.dumps({"event_type": "submitting_slurm_array", "n_tasks": len(files_to_process)}))
-        job_list, _ = run_slurm_array(
+        job_list = run_slurm_array(
             executor,
             run_genoflu,
             files_to_process,
             [config]*len(files_to_process)
         )
-
         logging.info(json.dumps({"event_type": "slurm_analysis_completed", "n_tasks": len(files_to_process)}))
+
+        completed_jobs = [job for job in job_list if job.state == "COMPLETED"]
+
+        for job in completed_jobs:
+            delete_files(os.path.join(config['slurm_params'].get("log_dir", "slurm_logs"), f"{job.job_id}*"))
+
     else:
         logging.info(json.dumps({"event_type": "using_local_processing_for_analysis"}))
         for fasta_file in files_to_process:
