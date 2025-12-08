@@ -6,17 +6,18 @@ import json
 import datetime 
 import time
 import logging 
+import submitit
 
 DEFAULT_SCAN_INTERVAL_SECONDS = 300
 
 from auto_genoflu._analysis import find_genoflu_files_to_process, run_genoflu, prelim_checks
 from auto_genoflu._tools import load_config, make_summary_file
 from auto_genoflu.operations import make_folder
+from auto_genoflu.slurm import init_slurm_executor, run_slurm_array
 
 def run_auto_analysis(config: dict) -> None:
     # Ensure output directory exists
     use_nextcloud = config.get('use_nextcloud', False)
-    make_folder(config['rename_dir'], use_nextcloud=use_nextcloud)
     make_folder(config['output_dir'], use_nextcloud=use_nextcloud)
     make_folder(config['provenance_dir'], use_nextcloud=use_nextcloud)
     
@@ -35,9 +36,24 @@ def run_auto_analysis(config: dict) -> None:
 
 
     # Process each file
-    for fasta_file in files_to_process:
-        run_genoflu(fasta_file, config)
-        logging.info(json.dumps({"event_type": "analysis_complete",  "fasta_file": fasta_file }))    
+    if config.get('use_slurm', False):
+
+        logging.info(json.dumps({"event_type": "initializing_slurm_executor"}))
+        executor = init_slurm_executor(config)
+        logging.info(json.dumps({"event_type": "submitting_slurm_array", "n_tasks": len(files_to_process)}))
+        job_list, _ = run_slurm_array(
+            executor,
+            run_genoflu,
+            files_to_process,
+            [config]*len(files_to_process)
+        )
+
+        logging.info(json.dumps({"event_type": "slurm_analysis_completed", "n_tasks": len(files_to_process)}))
+    else:
+        logging.info(json.dumps({"event_type": "using_local_processing_for_analysis"}))
+        for fasta_file in files_to_process:
+            run_genoflu(fasta_file, config)
+            logging.info(json.dumps({"event_type": "analysis_complete",  "fasta_file": fasta_file }))    
 
     if len(files_to_process) > 0:
         make_summary_file(config)
@@ -51,6 +67,7 @@ def main() -> None:
         datefmt='%Y-%m-%dT%H:%M:%S',
         level=args.log_level,
     )
+    logging.getLogger().addHandler(logging.StreamHandler())
     logging.debug(json.dumps({"event_type": "debug_logging_enabled"}))
     
 
