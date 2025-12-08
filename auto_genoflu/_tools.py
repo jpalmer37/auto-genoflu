@@ -13,7 +13,7 @@ def prelim_checks(config: dict) -> None:
         raise FileNotFoundError(f"Input directory does not exist: {config['input_dir']}")
     
     use_nextcloud = config.get('use_nextcloud', False)
-    dirs_to_create = ['rename_dir', 'output_dir', 'provenance_dir', 'summary_dir']
+    dirs_to_create = [ 'output_dir', 'provenance_dir', 'summary_dir']
     for dir_key in dirs_to_create:
         if not os.path.exists(config[dir_key]):
             logging.info(json.dumps({"event_type": f"{dir_key}_not_found", dir_key: config[dir_key]}))
