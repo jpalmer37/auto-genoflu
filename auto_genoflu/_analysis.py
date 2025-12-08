@@ -7,8 +7,8 @@ import json
 import logging
 import shutil
 
-from auto_genoflu._tools import get_input_name, get_output_name, make_symlink, compute_hash, load_config, glob_single, make_folder
-from auto_genoflu._nextcloud import nc_upload_file, local_move_file
+from auto_genoflu._tools import get_input_name, get_output_name, make_symlink, compute_hash, load_config, glob_single
+from auto_genoflu.operations import move_file, make_folder
 from auto_genoflu._rename import rename_fasta_headers
 
 def get_genoflu_env_path():
@@ -29,23 +29,21 @@ def prelim_checks(config: dict) -> None:
     """Perform preliminary checks on the configuration."""
     use_nextcloud = config.get('use_nextcloud', False)
     
-    # Derive rename_dir from work_dir
-    rename_dir = os.path.join(config['work_dir'], 'rename')
-    config['rename_dir'] = rename_dir
-    
-    for dir_name in ['input_dir', 'work_dir', 'rename_dir', 'output_dir', 'provenance_dir']:
+    for dir_name in ['input_dir', 'work_dir', 'output_dir', 'provenance_dir']:
         if not os.path.exists(config[dir_name]):
             logging.info(json.dumps({"event_type": f"{dir_name}_not_found", "dir_path": config[dir_name]}))
             make_folder(config[dir_name], use_nextcloud)
 
-def find_files_to_process(config: dict) -> Tuple[List[str], List[str], List[str]]:
+def find_genoflu_files_to_process(config: dict) -> Tuple[List[str], List[str], List[str]]:
     """Find FASTA files in input_dir that haven't been processed in output_dir."""
-    logging.debug(json.dumps({"event_type": "find_files_to_process_start", "input_dir": config['input_dir'], "output_dir": config['output_dir']}))
+    logging.debug(json.dumps({"event_type": "find_genoflu_files_to_process_start", "input_dir": config['input_dir'], "output_dir": config['output_dir']}))
     
     # Get all FASTA files from input directory
-    input_files = glob(os.path.join(config['input_dir'], "*.fa")) + \
-                 glob(os.path.join(config['input_dir'], "*.fasta")) + \
-                 glob(os.path.join(config['input_dir'], "*.fna"))
+
+    input_files = []
+    for expr in config['glob_expressions']:
+        input_files += glob(os.path.join(config['input_dir'], expr))
+
     
     # Get all TSV output files from output directory
     output_files = glob(os.path.join(config['output_dir'], "*.tsv"))
@@ -94,14 +92,15 @@ def run_genoflu(fasta_file: str, config: dict) -> None:
     """Run the analysis on a FASTA file and save result to results_dir."""
     # Extract sample name
     sample_name = get_input_name(fasta_file)
+    working_dir = os.path.join(config.get('work_dir', os.getcwd()), sample_name)
+    make_folder(working_dir, use_nextcloud=False)  # work directory is not allowed to be on nextcloud
     
     # Construct output filename
     input_filename = f'{sample_name}__input.fasta'
-    rename_fasta_path = os.path.join(config['rename_dir'], input_filename)
+    input_filepath = os.path.join(working_dir, input_filename)
     output_tsv_path = os.path.join(config['output_dir'], f"{sample_name}__genoflu.tsv")
     
     # Get working directory from config, default to current directory
-    working_dir = config.get('work_dir', os.getcwd())
     
     # Save the original working directory to restore later
     original_dir = os.getcwd()
@@ -109,26 +108,25 @@ def run_genoflu(fasta_file: str, config: dict) -> None:
     # Build and run the command
     try:
         # Change to working directory if specified
-        if working_dir != original_dir:
-            os.makedirs(working_dir, exist_ok=True)
-            os.chdir(working_dir)
-            logging.debug(json.dumps({
-                "event_type": "working_directory_changed",
-                "from": original_dir,
-                "to": working_dir
-            }))
+        
+        os.chdir(working_dir)
+        logging.debug(json.dumps({
+            "event_type": "working_directory_changed",
+            "from": original_dir,
+            "to": working_dir
+        }))
 
         genoflu_env_path = get_genoflu_env_path()
 
         # need this because genoflu is stupid 
-        rename_fasta_headers(fasta_file, rename_fasta_path)
-        symlink_path = f"./{input_filename}"
-        make_symlink(rename_fasta_path, symlink_path)
+        rename_fasta_headers(fasta_file, input_filepath)
+        # make_symlink(input_filepath, symlink_path)
 
         # Replace this with your actual command
-        cmd = [ f"genoflu.py",
+        cmd = [ f"{genoflu_env_path}/bin/genoflu.py",
             "-i", f"{genoflu_env_path}/dependencies/fastas/",
             "-c", f"{genoflu_env_path}/dependencies/genotype_key.xlsx",
+            "-p", str(config.get('id_threshold', 98.0)),
             "-f", input_filename,
             "-n", sample_name
         ]
@@ -154,10 +152,8 @@ def run_genoflu(fasta_file: str, config: dict) -> None:
         }))
 
         # Upload or move the TSV file based on configuration
-        if config.get('use_nextcloud', False):
-            nc_upload_file(tsv_filename, output_tsv_path)
-        else:
-            local_move_file(tsv_filename, output_tsv_path)
+        use_nextcloud = config.get('use_nextcloud', False)
+        move_file(tsv_filename, output_tsv_path, use_nextcloud=use_nextcloud)
 
         input_hash = compute_hash(fasta_file)
         output_hash = compute_hash(output_tsv_path)
@@ -186,15 +182,11 @@ def run_genoflu(fasta_file: str, config: dict) -> None:
         logging.debug(json.dumps({"event_type": "uploading_files", "sample_name": sample_name, "tsv_filename": tsv_filename, "provenance_filename": provenance_filename}))
         
         # Upload or move the provenance file based on configuration
-        if config.get('use_nextcloud', False):
-            nc_upload_file(provenance_filename, provenance_path)
-        else:
-            local_move_file(provenance_filename, provenance_path)
+        move_file(provenance_filename, provenance_path, use_nextcloud=use_nextcloud)
 
         # Remove the temporary files
-        logging.debug(json.dumps({"event_type": "removing_temporary_files", "sample_name": sample_name, "files": [rename_fasta_path, tsv_filename, xlsx_filename, provenance_filename, symlink_path]}))
-        for f in [rename_fasta_path, tsv_filename, xlsx_filename, provenance_filename, symlink_path]:
-            os.remove(f)
+        logging.debug(json.dumps({"event_type": "removing_temporary_files", "sample_name": sample_name}))
+        shutil.rmtree(working_dir)
         
         logging.debug(json.dumps({"event_type": "run_genoflu_complete", "sample_name": sample_name}))
 
@@ -203,16 +195,15 @@ def run_genoflu(fasta_file: str, config: dict) -> None:
         logging.error(json.dumps({"event_name": "genoflu_failed", "sample_name": sample_name, "error": str(e), "command": " ".join(cmd), "stderr": e.stderr.decode('utf-8') if e.stderr else ""}))
 
     except (IOError, FileNotFoundError) as e:
-        logging.error(json.dumps({"event_name": "genoflu_failed_file_error", "sample_name": sample_name, "error": str(e), "files": [rename_fasta_path, input_filename, output_tsv_path]}))
+        logging.error(json.dumps({"event_name": "genoflu_failed_file_error", "sample_name": sample_name, "error": str(e), "files": [input_filepath, input_filename, output_tsv_path]}))
 
     except (KeyError) as e:
         logging.error(json.dumps({"event_name": "genoflu_failed_key_error", "sample_name": sample_name, "error": str(e)}))
     
     finally:
         # Always restore the original working directory
-        if os.getcwd() != original_dir:
-            os.chdir(original_dir)
-            logging.debug(json.dumps({
-                "event_type": "working_directory_restored",
-                "to": original_dir
-            }))
+        os.chdir(original_dir)
+        logging.debug(json.dumps({
+            "event_type": "working_directory_restored",
+            "to": original_dir
+        }))
