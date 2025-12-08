@@ -2,8 +2,13 @@
 import json 
 import logging
 import submitit
+import time
 
-def init_slurm_executor(config: dict) -> submitit.AutoExecutor:
+def init_slurm_executor(config: dict = None) -> submitit.AutoExecutor:
+    if config is None:
+        config = {}
+    if 'slurm_params' not in config:
+        config['slurm_params'] = {}
     executor = submitit.AutoExecutor(folder=config['slurm_params'].get("log_dir", "slurm_logs"))
     executor.update_parameters(
         slurm_job_name=config['slurm_params'].get("job_name", "auto-genoflu_batch"),
@@ -25,10 +30,14 @@ def run_slurm_array(executor: submitit.AutoExecutor, function: callable, *functi
     failed_jobs = []
     for job in job_list:
         job.wait()
+
+        if job.state not in ['COMPLETED', 'FAILED']:
+            time.sleep(10)
+
         if job.state == "FAILED":
             failed_jobs.append(job)
     
     for job in failed_jobs:
-        logging.error(json.dumps({"event_type": "slurm_job_failed", "job_id": job.job_id, "exception": str(job.exception), "stderr": job.stderr}))
+        logging.error(json.dumps({"event_type": "slurm_job_failed", "job_id": job.job_id, "exception": str(job.exception()), "stderr": job.stderr}))
     
-    return job_list, failed_jobs
+    return job_list
