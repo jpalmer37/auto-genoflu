@@ -202,7 +202,7 @@ def delete_files(glob_expr: str) -> None:
         if os.path.isfile(file_path):
             try:
                 os.remove(file_path)
-                logging.info(json.dumps({
+                logging.debug(json.dumps({
                     "event_type": "file_deleted",
                     "file_path": str(file_path)
                 }))
