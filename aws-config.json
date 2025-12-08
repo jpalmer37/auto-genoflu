@@ -1,9 +1,21 @@
 {
+	"id_threshold": 98.0,
 	"input_dir": "/data/service-jpalmer/files/analysis/avian_flu/auto_genoflu/inputs/",
 	"output_dir": "/data/service-jpalmer/files/analysis/avian_flu/auto_genoflu/outputs/",
 	"provenance_dir": "/data/service-jpalmer/files/analysis/avian_flu/auto_genoflu/logs/",
 	"summary_dir": "/data/service-jpalmer/files/analysis/avian_flu/auto_genoflu/summary/",
 	"glob_expressions": ["*.fa", "*.fasta", "*.fna"],
 	"work_dir": "/home/ubuntu/genoflu/work",
-	"scan_interval_seconds": 60
+	"scan_interval_seconds": 60,
+	"use_nextcloud": false,
+	"use_slurm": false,
+	"slurm_params": {
+		"log_dir": "/data/service-jpalmer/files/analysis/avian_flu/auto_genoflu/slurm",
+		"partition": "prod",
+		"cpus_per_task": 2,
+		"mem": "4G",
+		"time": "00:20:00",
+		"job_name": "auto-genoflu_batch",
+		"array_parallelism": 8
+	}
 }

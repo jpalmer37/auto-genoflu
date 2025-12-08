@@ -1,7 +1,21 @@
 {
+	"id_threshold": 98.0,
 	"input_dir": "/path/to/genoflu/inputs/",
 	"output_dir": "/path/to/genoflu/outputs/",
 	"provenance_dir": "/path/to/genoflu/logs/",
 	"work_dir": "/path/to/working/dir",
-	"scan_interval_seconds": 180
+	"summary_dir": "/path/to/genoflu/summary/",
+	"glob_expressions": ["*.fa", "*.fasta", "*.fna"],
+	"scan_interval_seconds": 180,
+	"use_nextcloud": false,
+	"use_slurm": false,
+	"slurm_params": {
+		"log_dir": "/path/to/slurm/logs",
+		"partition": "prod",
+		"cpus_per_task": 2,
+		"mem": "4G",
+		"time": "00:20:00",
+		"job_name": "auto-genoflu_batch",
+		"array_parallelism": 8
+	}
 }
