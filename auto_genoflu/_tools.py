@@ -193,3 +193,23 @@ def make_summary_file(config: dict) -> None:
     except FileExistsError:
         logging.info(json.dumps({"event_type": "output_file_exists", "output_file": output_file}))
         pass
+
+
+def delete_files(glob_expr: str) -> None:
+    """Delete files matching the given glob expression."""
+
+    for file_path in glob(glob_expr):
+        if os.path.isfile(file_path):
+            try:
+                os.remove(file_path)
+                logging.info(json.dumps({
+                    "event_type": "file_deleted",
+                    "file_path": str(file_path)
+                }))
+            except Exception as e:
+                logging.error(json.dumps({
+                    "event_type": "file_deletion_error",
+                    "file_path": str(file_path),
+                    "error": str(e)
+                }))
+        
