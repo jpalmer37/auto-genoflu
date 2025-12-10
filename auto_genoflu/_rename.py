@@ -47,6 +47,14 @@ def _rename_gisaid(fasta_header: str) -> str:
     new_header = fasta_header + "_" + fields[-3]
     return new_header
 
+def _rename_nf_flu(fasta_header: str) -> str:
+    new_header = fasta_header
+    if "_" in fasta_header: 
+        fields = fasta_header.split("_")
+        fields[-1] = fields[-1].replace("M", "MP")
+        new_header = "_".join(fields)
+    return new_header
+
 def rename_fasta_headers(input_path: str, output_path: str) -> None:
     """
     Rename the headers of a FASTA file.
@@ -58,7 +66,11 @@ def rename_fasta_headers(input_path: str, output_path: str) -> None:
     Returns:
         None
     """
-    fn_dict = {'cfia': _rename_cfia, 'gisaid': _rename_gisaid}
+    fn_dict = {
+        'cfia': _rename_cfia, 
+        'gisaid': _rename_gisaid, 
+        'nf-flu': _rename_nf_flu 
+    }
 
     file_name = os.path.basename(input_path)
     count = file_name.count("_") + file_name.count("-")
@@ -70,6 +82,9 @@ def rename_fasta_headers(input_path: str, output_path: str) -> None:
     elif re.search("EPI[-_]ISL", file_name, flags=re.IGNORECASE):
         logging.debug(json.dumps({"event_type": "renaming_gisaid_headers", "file_name": file_name}))
         _rename_seqs(fn_dict['gisaid'], input_path, output_path)
+    elif re.match("[A-Za-z0-9]+-[0-9]+-.-[A-z0-9]+.consensus.fasta", file_name, flags=re.IGNORECASE):
+        logging.debug(json.dumps({"event_type": "renaming_nf_flu_headers", "file_name": file_name}))
+        _rename_seqs(fn_dict['nf-flu'], input_path, output_path)
     else:
         logging.warning(json.dumps({"event_type": "unknown_file_type_detected", "file_name": file_name}))
         _rename_seqs(fn_dict['cfia'], input_path, output_path)
