@@ -6,6 +6,7 @@ dependencies:
   - python>=3.9
   - pip
   - genoflu=1.06
+  - pandas=2.3.3
   - requests
   - setuptools=80
   - submitit=1.5.2
