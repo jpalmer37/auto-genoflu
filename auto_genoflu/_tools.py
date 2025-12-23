@@ -4,6 +4,7 @@ import subprocess
 from typing import List, Set, Tuple, Dict
 import json 
 import logging
+import pandas as pd
 from datetime import datetime
 from auto_genoflu.operations import make_folder, move_file
 
@@ -140,33 +141,52 @@ def glob_single(pattern: str):
     
     return file_list[0]
 
-def collectfile(output_file, input_files):
+def add_confidence_column(df: pd.DataFrame) -> pd.DataFrame:
+    """Add a Confidence column based on Genotype Percent Match List values.
+    
+    Args:
+        df: DataFrame containing the 'Genotype Percent Match List' column
+        
+    Returns:
+        DataFrame with added 'Confidence' column
+    """
+    logging.debug(json.dumps({"event_type": "add_confidence_column_start"}))
+    
+    def process(string):
+        if not isinstance(string, str):
+            return None
+        fields = [float(x.strip("% ")) for x in string.split(",")]
+        return min(fields)
+    df['Min Percent Match'] = df['Genotype Percent Match List'].apply(process)
+    df['Confidence Level'] = pd.cut(df['Min Percent Match'], bins=[0, 90, 95, 98, 100], labels=['sub90','90','95','98'])
+    
+    logging.info(json.dumps({"event_type": "add_confidence_column_complete"}))
+    
+    return df
+
+
+def collect_df(input_files: List[str]) -> pd.DataFrame:
+    """Combine multiple TSV files into a single file and return the combined dataframe.
+    
+    Args:
+        output_file: Path to the output TSV file
+        input_files: List of input TSV file paths
+        
+    Returns:
+        Combined DataFrame from all input files
+    """
     # Check argument count
     if len(input_files) < 1:
-        logging.warning(json.dumps({"event_type": "collectfile_no_input_files", "input_files": input_files}))
-        return
+        logging.warning(json.dumps({"event_type": "collect_df_no_input_files", "input_files": input_files}))
+        return pd.DataFrame()
     
-    # Check if output file already exists
-    if os.path.exists(output_file):
-        logging.warning(json.dumps({"event_type": "collectfile_output_exists", "output_file": output_file}))
-        return 
+    # Read all TSV files and concatenate
+    dataframes = [pd.read_csv(file, sep='\t') for file in input_files]
+    combined_df = pd.concat(dataframes, ignore_index=True)
     
-    # Open output file in write mode
-    with open(output_file, 'w') as outfile:
-        # Read and write header from first file
-        with open(input_files[0], 'r') as first_file:
-            header = first_file.readline()
-            outfile.write(header)
-        
-        # Append non-header lines from all files
-        for file in input_files:
-            with open(file, 'r') as infile:
-                # Skip header for subsequent files
-                next(infile, None)
-                # Write remaining lines
-                outfile.writelines(infile)
-
-    logging.info(json.dumps({"event_type": "collectfile_complete", "output_file": output_file, "input_files": input_files}))
+    logging.info(json.dumps({"event_type": "collect_df_complete",  "input_files": input_files}))
+    
+    return combined_df
 
 def make_summary_file(config: dict) -> None:
     logging.info(json.dumps({"event_type": "make_summary_file_start"}))
@@ -180,7 +200,11 @@ def make_summary_file(config: dict) -> None:
     input_files = glob(os.path.join(config['output_dir'], "*genoflu.tsv"))
 
     try:
-        collectfile(tmp_file, input_files)
+        output_df = collect_df(input_files)
+
+        output_df = add_confidence_column(output_df)
+
+        output_df.to_csv(tmp_file, sep='\t', index=False)
 
         move_file(tmp_file, output_file, use_nextcloud=config.get('use_nextcloud', False))
 
