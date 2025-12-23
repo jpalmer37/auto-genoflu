@@ -184,7 +184,7 @@ def collect_df(input_files: List[str]) -> pd.DataFrame:
     dataframes = [pd.read_csv(file, sep='\t') for file in input_files]
     combined_df = pd.concat(dataframes, ignore_index=True)
     
-    logging.info(json.dumps({"event_type": "collect_df_complete",  "input_files": input_files}))
+    logging.info(json.dumps({"event_type": "collect_df_complete"}))
     
     return combined_df
 

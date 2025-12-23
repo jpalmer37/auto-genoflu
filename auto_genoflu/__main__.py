@@ -53,7 +53,7 @@ def run_auto_analysis(config: dict) -> None:
 
             for job in completed_jobs:
                 delete_files(os.path.join(config['slurm_params'].get("log_dir", "slurm_logs"), f"{job.job_id}*"))
-            logging.info(json.dumps({"event_type": "slurm_logs_deleted", "deleted_jobs": [job.job_id for job in completed_jobs]}))
+            logging.info(json.dumps({"event_type": "slurm_logs_deleted"}))
         else:
             logging.info(json.dumps({"event_type": "using_local_processing_for_analysis"}))
             for fasta_file in files_to_process:
